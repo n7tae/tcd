@@ -24,7 +24,7 @@
 
 #include "DV3003.h"
 #include "configure.h"
-#include "UnixPacketSocket.h"
+#include "UnixDgramSocket.h"
 
 class CController
 {
@@ -39,7 +39,8 @@ private:
 	std::atomic<bool> keep_running;
 	std::future<void> future;
 	std::vector<std::shared_ptr<CDV3003>> dmr_devices, dstar_devices;
-	CUnixPacketClient socket;
+	CUnixDgramReader reader;
+	CUnixDgramWriter writer;
 
 	void Processing();
 

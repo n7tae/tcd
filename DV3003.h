@@ -50,8 +50,7 @@
 
 #define packet_size(a) int(1 + sizeof((a).header) + ntohs((a).header.payload_length))
 
-#pragma pack(push, 1)
-struct dv3003_packet {
+using SDV3003_Packet = struct __attribute__ ((__packed__)) dv3003_packet {
 	uint8_t start_byte;
 	struct {
 		uint16_t payload_length;
@@ -83,9 +82,7 @@ struct dv3003_packet {
 		} ambe;
 	} payload;
 };
-#pragma pack(pop)
 
-using SDV3003_Packet =  struct dv3003_packet;
 enum class Encoding { dstar, dmr };
 
 class CDV3003 {

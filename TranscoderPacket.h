@@ -20,23 +20,16 @@
 #include <cstring>
 #include <stdint.h>
 
-using SCodecData = struct codecdata_tag {
-	uint8_t dstar[9];
-	uint8_t dmr[9];
-	uint8_t m17[16];
-};
-
-enum class ECodecType { none, dstar, dmr, m17_1600, m17_3200 };
+#include "TCPacketDef.h"
 
 class CTranscoderPacket
 {
 public:
 	// constructor
-	CTranscoderPacket();
+	CTranscoderPacket(char mod);
 
 	// this packet's refector module;
 	char GetModule() const;
-	void SetModule(char mod);
 
 	// codec
 	const uint8_t *GetDStarData();
@@ -45,9 +38,6 @@ public:
 	void SetDStarData(const uint8_t *dstar);
 	void SetDMRData(const uint8_t *dmr );
 	void SetM17Data(const uint8_t *m17, bool is_3200);
-
-	// first time load
-	void SetCodecIn(ECodecType type, uint8_t *data);
 
 	// state of packet
 	ECodecType GetCodecIn() const;
@@ -58,8 +48,7 @@ public:
 	bool AllAreSet() const;
 
 private:
-	char module;
-	ECodecType codec_in;
+	STCPacket tcpacket;
+	uint16_t audio[320];
 	bool m17_is_3200, dstar_set, dmr_set, m17_set;
-	SCodecData data;
 };

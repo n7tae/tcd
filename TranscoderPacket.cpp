@@ -1,4 +1,3 @@
-
 // tcd - a hybid transcoder using DVSI hardware and Codec2 software
 // Copyright © 2021 Thomas A. Early N7TAE
 
@@ -17,76 +16,52 @@
 
 #include "TranscoderPacket.h"
 
-CTranscoderPacket::CTranscoderPacket() : module(' '), codec_in(ECodecType::none), dstar_set(false), dmr_set(false), m17_set(false)
+CTranscoderPacket::CTranscoderPacket(char mod) : dstar_set(false), dmr_set(false), m17_set(false)
 {
+	tcpacket.module = mod;
 }
 
 char CTranscoderPacket::GetModule() const
 {
-	return module;
-}
-
-void CTranscoderPacket::SetModule(char mod)
-{
-	module = mod;
+	return tcpacket.module;
 }
 
 const uint8_t *CTranscoderPacket::GetDStarData()
 {
-	return data.dstar;
+	return tcpacket.dstar;
 }
 
 const uint8_t *CTranscoderPacket::GetDMRData()
 {
-	return data.dmr;
+	return tcpacket.dmr;
 }
 
 const uint8_t *CTranscoderPacket::GetM17Data()
 {
-	return data.m17;
+	return tcpacket.m17;
 }
 
 void CTranscoderPacket::SetDStarData(const uint8_t *dstar)
 {
-	memcpy(data.dstar, dstar, 9);
+	memcpy(tcpacket.dstar, dstar, 9);
 	dstar_set = true;
 }
 void CTranscoderPacket::SetDMRData(const uint8_t *dmr )
 {
-	memcpy(data.dmr, dmr, 9);
+	memcpy(tcpacket.dmr, dmr, 9);
 	dmr_set = true;
 }
 
 void CTranscoderPacket::SetM17Data(const uint8_t *m17, bool is_3200)
 {
-	memcpy(data.m17, m17, is_3200 ? 16 : 8);
+	memcpy(tcpacket.m17, m17, is_3200 ? 16 : 8);
 	m17_set = true;
 	m17_is_3200 = is_3200;
 }
 
-void CTranscoderPacket::SetCodecIn(ECodecType type, uint8_t *data)
-{
-	switch (type) {
-		case ECodecType::dstar:
-			SetDStarData(data);
-			break;
-		case ECodecType::dmr:
-			SetDMRData(data);
-			break;
-		case ECodecType::m17_1600:
-			SetM17Data(data, false);
-			break;
-		case ECodecType::m17_3200:
-			SetM17Data(data, true);
-			true;
-	}
-	if (type != ECodecType::none)
-		codec_in = type;
-}
-
 ECodecType CTranscoderPacket::GetCodecIn() const
 {
-	return codec_in;
+	return tcpacket.codec_in;
 }
 
 bool CTranscoderPacket::DStarIsSet() const

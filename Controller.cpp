@@ -20,7 +20,7 @@
 
 bool CController::Start()
 {
-	if (socket.Open("urfd2tcd", this))
+	if (reader.Open("urfd2tcd"))
 	{
 		keep_running = false;
 		return true;
@@ -33,7 +33,7 @@ void CController::Stop()
 {
 	keep_running = false;
 	future.get();
-	socket.Close();
+	reader.Close();
 }
 
 void CController::Processing()

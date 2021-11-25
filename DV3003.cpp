@@ -403,7 +403,7 @@ bool CDV3003::GetAudio(int16_t *audio)
 	p.start_byte = 0U;
 	if (getresponse(p))
 		return true;
-	if (p.start_byte!=PKT_HEADER || htons(p.header.payload_length)!=322 ||
+	if (p.start_byte!=PKT_HEADER || htons(p.header.payload_length)!=323 ||
 			p.header.packet_type!=PKT_SPEECH || p.payload.audio.speechd!=0U ||
 			p.payload.audio.num_samples!=160U) {
 		std::cerr << "GetAudio: unexpected audio packet response" << std::endl;
