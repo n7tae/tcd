@@ -22,21 +22,41 @@
 #include <queue>
 #include <memory>
 
-#include "TCPacketDef.h"
+#include "TranscoderPacket.h"
 
+// for holding CTranscoder packets while the vocoders are working their magic
 class CPacketQueue
 {
 public:
-	// lock
-	void Lock()   { mutex.lock(); }
-	void Unlock() { mutex.unlock(); }
-
 	// pass thru
-	std::unique_ptr<STCPacket> pop()              { auto pack = std::move(queue.front()); queue.pop(); return std::move(pack); }
-	bool empty() const                            { return queue.empty(); }
-	void push(std::unique_ptr<STCPacket> &packet) { queue.push(std::move(packet)); }
+	std::unique_ptr<CTranscoderPacket> pop()
+	{
+		std::unique_ptr<CTranscoderPacket> pack;
+		mutex.lock();
+		if (! queue.empty()) {
+			pack = std::move(queue.front());
+			queue.pop();
+		}
+		mutex.unlock();
+		return std::move(pack);
+	}
+
+	bool empty()
+	{
+		mutex.lock();
+		bool rval = queue.empty();
+		mutex.unlock();
+		return rval;
+	}
+
+	void push(std::unique_ptr<CTranscoderPacket> &packet)
+	{
+		mutex.lock();
+		queue.push(std::move(packet));
+		mutex.unlock();
+	}
 
 protected:
-	std::mutex  mutex;
-	std::queue<std::unique_ptr<STCPacket>> queue;
+	std::mutex mutex;
+	std::queue<std::unique_ptr<CTranscoderPacket>> queue;
 };

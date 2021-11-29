@@ -22,11 +22,13 @@
 
 #include "TCPacketDef.h"
 
+enum class EAudioSection { firsthalf, secondhalf, all };
+
 class CTranscoderPacket
 {
 public:
 	// constructor
-	CTranscoderPacket(char mod);
+	CTranscoderPacket(const STCPacket &tcp);
 
 	// this packet's refector module;
 	char GetModule() const;
@@ -36,19 +38,24 @@ public:
 	const uint8_t *GetDMRData();
 	const uint8_t *GetM17Data();
 	void SetDStarData(const uint8_t *dstar);
-	void SetDMRData(const uint8_t *dmr );
-	void SetM17Data(const uint8_t *m17, bool is_3200);
+	void SetDMRData(const uint8_t *dmr);
+	void SetM17Data(const uint8_t *m17);
+
+	// audio
+	int16_t *GetAudio();
 
 	// state of packet
 	ECodecType GetCodecIn() const;
+	uint16_t GetStreamId() const;
+	bool IsLast() const;
+	bool IsSecond() const;
 	bool DStarIsSet() const;
 	bool DMRIsSet() const;
 	bool M17IsSet() const;
-	bool M17Is3200() const;
-	bool AllAreSet() const;
+	bool AllCodecsAreSet() const;
 
 private:
 	STCPacket tcpacket;
-	uint16_t audio[320];
-	bool m17_is_3200, dstar_set, dmr_set, m17_set;
+	int16_t audio[160];
+	bool dstar_set, dmr_set, m17_set;
 };

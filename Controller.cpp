@@ -14,34 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <sys/select.h>
 #include <iostream>
 
+#include "TranscoderPacket.h"
 #include "Controller.h"
 
 bool CController::Start()
 {
-	if (reader.Open("urfd2tcd"))
+	if (InitDevices() || reader.Open("urfd2tcd"))
 	{
 		keep_running = false;
 		return true;
 	}
-	future = std::async(std::launch::async, &CController::Processing, this);
+	reflectorThread = std::async(std::launch::async, &CController::ReadReflector,   this);
+	ambeThread      = std::async(std::launch::async, &CController::ReadAmbeDevices, this);
 	return false;
 }
 
 void CController::Stop()
 {
 	keep_running = false;
-	future.get();
+	reflectorThread.get();
+	ambeThread.get();
 	reader.Close();
-}
-
-void CController::Processing()
-{
-	while (keep_running)
-	{
-		// anything to read?
-	}
 }
 
 bool CController::InitDevices()
@@ -80,13 +76,25 @@ bool CController::InitDevices()
 
 		// add it to the list, according to type
 		if (Encoding::dstar == type)
-			dstar_devices.push_back(a3003);
+		{
+			dstar_device.push_back(a3003);
+			dstar_vocoder_count += 3;
+		}
 		else
-			dmr_devices.push_back(a3003);
+		{
+			dmr_device.push_back(a3003);
+			dmr_vocoder_count += 3;
+		}
 
 		// finally, toggle the type for the next device
 		type = (type == Encoding::dstar) ? Encoding::dmr : Encoding::dstar;
 	}
+
+	dmr_audio_block.resize(dmr_vocoder_count);
+	dmr_packet_queue.resize(dmr_vocoder_count);
+	dstar_audio_block.resize(dstar_vocoder_count);
+	dstar_packet_queue.resize(dstar_vocoder_count);
+
 	return false;
 }
 
@@ -102,5 +110,135 @@ void CController::CSVtoSet(const std::string &str, std::set<std::string> &set, c
 
 		lastPos = str.find_first_not_of(delimiters, pos);	// Skip delimiters.
 		pos = str.find_first_of(delimiters, lastPos);	// Find next non-delimiter.
+	}
+}
+
+void CController::IncrementDMRVocoder()
+{
+	current_dmr_vocoder = (current_dmr_vocoder + 1) % dmr_vocoder_count;
+}
+
+void CController::IncrementDStarVocoder()
+{
+	current_dstar_vocoder = (current_dstar_vocoder + 1) % dstar_vocoder_count;
+}
+
+void CController::ReadReflector()
+{
+	while (keep_running) {
+		STCPacket tcpack;
+		//wait up to 40 ms to read something on the unix port
+		if (reader.Receive(&tcpack, 40)) {
+			//create a std::shared_ptr to a new packet
+			auto packet = std::unique_ptr<CTranscoderPacket>(new CTranscoderPacket(tcpack));
+			switch (packet->GetCodecIn()) {
+			case ECodecType::dstar:
+				//send it to the next available dstar vocoder
+				dstar_device[current_dstar_vocoder/3]->SendData(current_dstar_vocoder%3, packet->GetDStarData());
+				//push the packet onto that vocoder's queue
+				dstar_packet_queue[current_dstar_vocoder].push(packet);
+				//increment the dstar vocoder index
+				IncrementDStarVocoder();
+				break;
+			case ECodecType::dmr:
+				//send it to the next avaiable dmr vocoder
+				dmr_device[current_dmr_vocoder/3]->SendData(current_dmr_vocoder%3, packet->GetDMRData());
+				//push the packet onto that vocoder's queue
+				dmr_packet_queue[current_dmr_vocoder].push(packet);
+				//increment the dmr vocoder index
+				IncrementDMRVocoder();
+				break;
+			case ECodecType::c2_1600:
+			case ECodecType::c2_3200:
+				if (packet->IsSecond()) {
+					if (packet->GetCodecIn() == ECodecType::c2_3200) {
+						//decode the second 8 data bytes
+						//move the 160 audio samples to the packet
+					} else /* the codec is C2_1600 */ {
+						//copy the audio from local storage
+					}
+					// encode the audio to dstar
+					//create a 3003 audio packet
+					//save the dstar vocoder index in the packet
+					//push the packet onto the dstar vocoder's queue
+					//send the 3003 audio packet to the dstar vocoder specified in the packet
+					//increment the dstar vocoder index
+					// encode the audio to dmr
+					//save the dmr vocoder index in the packet
+					//push the packet onto the dmr vocoder's queue
+					//send the same 3003 audio packet to the dmr vocoder specified in the packet
+					//increment the dmr vocoder index
+				} else /* it's a "first packet" */ {
+					//decode the first 8 bytes of data to get the up to 320 audio samples
+					//move the first 160 audio samples to the packet
+					// encode the audio to dstar
+					//create a 3003 audio packet
+					//save the dstar vocoder index in the packet
+					//push the packet onto the vocoder's queue
+					//send it to the dstar vocoder specified in the packet
+					//increment the dstar vocoder index
+					// encode the audio to dmr
+					//save the dmr vocoder index in the packet
+					//push the packet onto the vocoder's queue
+					//send the same audio packet to the dmr vocoder specified in the packet
+					//increment the dmr vocoder index
+					// save the second half of the audio if the m17 packet was c2_1600
+					if (packet->GetCodecIn() == ECodecType::c2_1600) {
+						//put the second 160 audio samples into local storage
+					}
+				}
+			}
+		}
+	}
+}
+
+void CController::ReadAmbeDevices()
+{
+	while (keep_running)
+	{
+		//wait for up to 40 ms to read anthing from all devices
+		if (something is ready to be read) {
+			// from the device file descriptor, we'll know if it's dstar or dmr
+			//save the dmr/dstar type
+			//read the response from the vocoder
+			//get the packet from either the dstar or dmr vocoder's queue
+			if (the response is audio) {
+				// if the response is audio, this means that packet.codec_in is an ambe codec
+				// so we need to encode the m17
+				//encode the audio to c2_3200
+				if (packet.IsSecond()) {
+					//move the c2_3200 data to the second half of the M17 packet
+				} else /* the packet is first */ {
+					//move the c2_3200 data do the first half of the M17 packet
+					if (packet->IsLast()) {
+						// we have an odd number of packets, so we have to do finish up the m17 packet
+						const uint8_t silence[] = {0x00, 0x01, 0x43, 0x09, 0xe4, 0x9c, 0x08, 0x21 };
+						//put codec silence in the second half of the codec
+					}
+				}
+				//create a 3003 audio packet
+				//move the response audio to the packet
+				if (the dmr/dstar type == dstar) {
+					//send the audio packet to the next available dmr vocoder
+					//push the packet onto the dmr vocoder's queue
+					//increment the dmr vocoder index
+				} else /* the dmr/dstar type is dmr */ {
+					//send the audio packet to the next available dstar vocoder
+					//push the packet onto the dstar vocoder's queue
+					//increment the dstar vocoder index
+				}
+			} else /* the response is ambe */ {
+				if (the dmr/dstar type == dstar) {
+					//move the ambe to the packet.dstar
+				} else {
+					//move the ambe to the packet.dmr
+				}
+				if (packet.AllCodecsAreSet()) {
+					//open a socket to the reflector channel
+					//send the packet over the socket
+					//close the socket
+				}
+			}
+		}
 	}
 }

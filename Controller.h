@@ -22,27 +22,47 @@
 #include <atomic>
 #include <future>
 
+#include "PacketQueue.h"
 #include "DV3003.h"
 #include "configure.h"
 #include "UnixDgramSocket.h"
 
+// local audio storage
+class CAudioBlock
+{
+public:
+    int16_t   operator [](int i) const {return audio[i];}
+    int16_t & operator [](int i)       {return audio[i];}
+	int16_t  *data() { return audio; }
+	const int16_t  *cdata() const { return audio; }
+protected:
+	int16_t audio[160];
+};
+
 class CController
 {
 public:
-	CController() : keep_running(true) {}
-	bool InitDevices();
+	CController() : dmr_vocoder_count(0), current_dmr_vocoder(0), dstar_vocoder_count(0), current_dstar_vocoder(0), keep_running(true) {}
 	bool Start();
 	void Stop();
 	bool IsRunning() { return keep_running; }
 
-private:
+protected:
+	unsigned int dmr_vocoder_count, current_dmr_vocoder, dstar_vocoder_count, current_dstar_vocoder;
 	std::atomic<bool> keep_running;
-	std::future<void> future;
-	std::vector<std::shared_ptr<CDV3003>> dmr_devices, dstar_devices;
+	std::future<void> reflectorThread, ambeThread;
+	std::vector<std::shared_ptr<CDV3003>> dmr_device, dstar_device;
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
+	std::vector<CAudioBlock> dmr_audio_block, dstar_audio_block;
+	std::vector<CPacketQueue> dmr_packet_queue, dstar_packet_queue;
 
-	void Processing();
+	bool InitDevices();
+	void IncrementDMRVocoder(void);
+	void IncrementDStarVocoder(void);
+	// processing threads
+	void ReadReflector();
+	void ReadAmbeDevices();
 
 	void CSVtoSet(const std::string &str, std::set<std::string> &set, const std::string &delimiters = ",");
 };

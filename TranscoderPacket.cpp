@@ -14,11 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <iostream>
+
 #include "TranscoderPacket.h"
 
-CTranscoderPacket::CTranscoderPacket(char mod) : dstar_set(false), dmr_set(false), m17_set(false)
+CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), dmr_set(false), m17_set(false)
 {
-	tcpacket.module = mod;
+	tcpacket.module = tcp.module;
+	tcpacket.is_last = tcp.is_last;
+	tcpacket.is_second = tcp.is_second;
+	tcpacket.streamid = tcp.streamid;
+	tcpacket.codec_in = tcp.codec_in;
+	switch (tcp.codec_in)
+	{
+	case ECodecType::dstar:
+		SetDStarData(tcp.dstar);
+		break;
+	case ECodecType::dmr:
+		SetDMRData(tcp.dmr);
+		break;
+	case ECodecType::c2_1600:
+	case ECodecType::c2_3200:
+		SetM17Data(tcp.m17);
+		break;
+	default:
+		std::cerr << "Trying to allocate CTranscoderPacket with an unknown codec type!" << std::endl;
+		break;
+	}
 }
 
 char CTranscoderPacket::GetModule() const
@@ -52,16 +74,35 @@ void CTranscoderPacket::SetDMRData(const uint8_t *dmr )
 	dmr_set = true;
 }
 
-void CTranscoderPacket::SetM17Data(const uint8_t *m17, bool is_3200)
+void CTranscoderPacket::SetM17Data(const uint8_t *m17)
 {
-	memcpy(tcpacket.m17, m17, is_3200 ? 16 : 8);
+	memcpy(tcpacket.m17, m17, 16);
 	m17_set = true;
-	m17_is_3200 = is_3200;
+}
+
+int16_t *CTranscoderPacket::GetAudio()
+{
+	return audio;
 }
 
 ECodecType CTranscoderPacket::GetCodecIn() const
 {
 	return tcpacket.codec_in;
+}
+
+uint16_t CTranscoderPacket::GetStreamId() const
+{
+	return tcpacket.streamid;
+}
+
+bool CTranscoderPacket::IsLast() const
+{
+	return tcpacket.is_last;
+}
+
+bool CTranscoderPacket::IsSecond() const
+{
+	return tcpacket.is_second;
 }
 
 bool CTranscoderPacket::DStarIsSet() const
@@ -79,12 +120,7 @@ bool CTranscoderPacket::M17IsSet() const
 	return m17_set;
 }
 
-bool CTranscoderPacket::M17Is3200() const
-{
-	return m17_is_3200;
-}
-
-bool CTranscoderPacket::AllAreSet() const
+bool CTranscoderPacket::AllCodecsAreSet() const
 {
 	return (dstar_set && dmr_set && m17_set);
 }
