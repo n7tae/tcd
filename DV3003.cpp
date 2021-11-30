@@ -31,8 +31,6 @@
 #include <iomanip>
 #include <cerrno>
 
-#include <netinet/in.h>
-
 #include "DV3003.h"
 
 CDV3003::CDV3003(Encoding t) : type(t), fd(-1)
@@ -152,7 +150,7 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
-	if (getresponse(responsePacket)) {
+	if (GetResponse(responsePacket)) {
 		std::cerr << "InitDV3003: error receiving response to reset" << std::endl;
 		return true;
 	}
@@ -174,7 +172,7 @@ bool CDV3003::InitDV3003()
 	}
 
 	memset(&responsePacket, 0, sizeof(responsePacket));
-	if (getresponse(responsePacket)) {
+	if (GetResponse(responsePacket)) {
 		std::cerr << "InitDV3003: error receiving response to parity set" << std::endl;
 		dump("Parity Ctrl Response Packet", &responsePacket, 4+ntohs(responsePacket.header.payload_length));
 		return true;
@@ -194,7 +192,7 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
-	if (getresponse(responsePacket)) {
+	if (GetResponse(responsePacket)) {
 		std::cerr << "InitDV3003: error receiving response to product id request" << std::endl;
 		return true;
 	}
@@ -212,7 +210,7 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
-	if (getresponse(responsePacket)) {
+	if (GetResponse(responsePacket)) {
 		std::cerr << "InitDV3003: error receiving response to version request" << std::endl;
 		return true;
 	}
@@ -250,7 +248,7 @@ bool CDV3003::ConfigureCodec(uint8_t pkt_ch, Encoding type)
 	}
 
 	memset(&responsePacket, 0, sizeof(SDV3003_Packet));
-	if (getresponse(responsePacket)) {
+	if (GetResponse(responsePacket)) {
 		std::cerr << "error reading codec config response packet" << std::endl;
 		return true;
 	}
@@ -275,7 +273,7 @@ void CDV3003::CloseDevice()
 	}
 }
 
-bool CDV3003::getresponse(SDV3003_Packet &packet)
+bool CDV3003::GetResponse(SDV3003_Packet &packet)
 {
 	ssize_t bytesRead;
 
@@ -353,27 +351,6 @@ bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
 	return false;
 }
 
-bool CDV3003::GetData(uint8_t *data)
-{
-	SDV3003_Packet p;
-	// read data packet from DV3000
-	p.start_byte = 0U;
-	if (getresponse(p))
-		return true;
-	if (p.start_byte!=PKT_HEADER || htons(p.header.payload_length)!=12 ||
-			p.header.packet_type!=PKT_CHANNEL || p.payload.ambe.chand!=1U ||
-			p.payload.ambe.num_bits!=72U) {
-		std::cerr << "Error receiving audio packet response" << std::endl;
-		dump("Received AMBE", &p, packet_size(p));
-		return true;
-	}
-
-	// copy it to the output
-	memcpy(data, p.payload.ambe.data, 9);
-
-	return false;
-}
-
 bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
 {
 	// Create data packet
@@ -393,28 +370,6 @@ bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
 		dump("Received Data", &p, size);
 		return true;
 	}
-	return false;
-}
-
-bool CDV3003::GetAudio(int16_t *audio)
-{
-	SDV3003_Packet p;
-	// read audio packet from DV3000
-	p.start_byte = 0U;
-	if (getresponse(p))
-		return true;
-	if (p.start_byte!=PKT_HEADER || htons(p.header.payload_length)!=323 ||
-			p.header.packet_type!=PKT_SPEECH || p.payload.audio.speechd!=0U ||
-			p.payload.audio.num_samples!=160U) {
-		std::cerr << "GetAudio: unexpected audio packet response" << std::endl;
-		int size = packet_size(p);
-		dump("Received Audio", &p, size);
-		return true;
-	}
-
-	for (int i=0; i<160; i++)
-		audio[i] = ntohs(p.payload.audio.samples[i]);
-
 	return false;
 }
 

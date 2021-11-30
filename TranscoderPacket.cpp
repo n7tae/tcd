@@ -35,7 +35,7 @@ CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), d
 		break;
 	case ECodecType::c2_1600:
 	case ECodecType::c2_3200:
-		SetM17Data(tcp.m17);
+		SetM17Data(tcp.m17, 0, 16);
 		break;
 	default:
 		std::cerr << "Trying to allocate CTranscoderPacket with an unknown codec type!" << std::endl;
@@ -48,19 +48,38 @@ char CTranscoderPacket::GetModule() const
 	return tcpacket.module;
 }
 
-const uint8_t *CTranscoderPacket::GetDStarData()
+const uint8_t *CTranscoderPacket::GetDStarData() const
 {
 	return tcpacket.dstar;
 }
 
-const uint8_t *CTranscoderPacket::GetDMRData()
+const uint8_t *CTranscoderPacket::GetDMRData() const
 {
 	return tcpacket.dmr;
 }
 
-const uint8_t *CTranscoderPacket::GetM17Data()
+const uint8_t *CTranscoderPacket::GetM17Data() const
 {
 	return tcpacket.m17;
+}
+
+const STCPacket *CTranscoderPacket::GetTCPacket() const
+{
+	return &tcpacket;
+}
+
+void CTranscoderPacket::SetM17Data(const uint8_t *data, unsigned int offset, unsigned int size)
+{
+	if (offset)
+	{
+		if (8 != offset)
+			offset = 8;
+	}
+	if (offset + size != 16)
+		size = 16U - offset;
+	memcpy(tcpacket.m17+offset, data, size);
+	if (offset>0 || size==16)
+		m17_set = true;
 }
 
 void CTranscoderPacket::SetDStarData(const uint8_t *dstar)
@@ -72,12 +91,6 @@ void CTranscoderPacket::SetDMRData(const uint8_t *dmr )
 {
 	memcpy(tcpacket.dmr, dmr, 9);
 	dmr_set = true;
-}
-
-void CTranscoderPacket::SetM17Data(const uint8_t *m17)
-{
-	memcpy(tcpacket.m17, m17, 16);
-	m17_set = true;
 }
 
 int16_t *CTranscoderPacket::GetAudio()

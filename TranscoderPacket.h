@@ -34,12 +34,12 @@ public:
 	char GetModule() const;
 
 	// codec
-	const uint8_t *GetDStarData();
-	const uint8_t *GetDMRData();
-	const uint8_t *GetM17Data();
+	const uint8_t *GetDStarData() const;
+	const uint8_t *GetDMRData() const;
+	const uint8_t *GetM17Data() const;
 	void SetDStarData(const uint8_t *dstar);
 	void SetDMRData(const uint8_t *dmr);
-	void SetM17Data(const uint8_t *m17);
+	void SetM17Data(const uint8_t *m17, unsigned int offset, unsigned int size);
 
 	// audio
 	int16_t *GetAudio();
@@ -53,6 +53,9 @@ public:
 	bool DMRIsSet() const;
 	bool M17IsSet() const;
 	bool AllCodecsAreSet() const;
+
+	// the all important packet
+	const STCPacket *GetTCPacket() const;
 
 private:
 	STCPacket tcpacket;

@@ -16,8 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <netinet/in.h>
 #include <string>
 #include <sstream>
+
+#include "PacketQueue.h"
 
 #define USB3XXX_MAXPACKETSIZE   1024        // must be multiple of 64
 
@@ -93,20 +96,21 @@ public:
 	bool InitDV3003();
 	bool ConfigureCodec(uint8_t pkt_ch, Encoding type);
 	bool SendAudio(const uint8_t channel, const int16_t *audio) const;
-	bool GetData(uint8_t *data);
 	bool SendData(const uint8_t channel, const uint8_t *data) const;
-	bool GetAudio(int16_t *audio);
+	bool GetResponse(SDV3003_Packet &packet);
+	int GetFd() const { return fd; }
 	void CloseDevice();
 	bool IsOpen() const;
 	void dump(const char *title, void *data, int length) const;
 	std::string GetDevicePath() const;
 	std::string GetProductID() const;
 	std::string GetVersion() const;
+
+	CPacketQueue packet_queue;
 private:
 	const Encoding type;
 	int fd;
 	std::string devicepath, productid, version;
 	bool SetBaudRate(int baudrate);
-	bool getresponse(SDV3003_Packet &packet);
 	bool checkResponse(SDV3003_Packet &responsePacket, uint8_t response) const;
 };

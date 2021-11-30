@@ -29,12 +29,12 @@ class CPacketQueue
 {
 public:
 	// pass thru
-	std::unique_ptr<CTranscoderPacket> pop()
+	std::shared_ptr<CTranscoderPacket> pop()
 	{
-		std::unique_ptr<CTranscoderPacket> pack;
+		std::shared_ptr<CTranscoderPacket> pack;
 		mutex.lock();
 		if (! queue.empty()) {
-			pack = std::move(queue.front());
+			pack = queue.front();
 			queue.pop();
 		}
 		mutex.unlock();
@@ -49,14 +49,14 @@ public:
 		return rval;
 	}
 
-	void push(std::unique_ptr<CTranscoderPacket> &packet)
+	void push(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		mutex.lock();
-		queue.push(std::move(packet));
+		queue.push(packet);
 		mutex.unlock();
 	}
 
 protected:
 	std::mutex mutex;
-	std::queue<std::unique_ptr<CTranscoderPacket>> queue;
+	std::queue<std::shared_ptr<CTranscoderPacket>> queue;
 };

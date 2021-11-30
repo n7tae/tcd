@@ -21,23 +21,14 @@
 #include <memory>
 #include <atomic>
 #include <future>
+#include <sys/select.h>
 
-#include "PacketQueue.h"
+#include "codec2.h"
 #include "DV3003.h"
 #include "configure.h"
 #include "UnixDgramSocket.h"
 
-// local audio storage
-class CAudioBlock
-{
-public:
-    int16_t   operator [](int i) const {return audio[i];}
-    int16_t & operator [](int i)       {return audio[i];}
-	int16_t  *data() { return audio; }
-	const int16_t  *cdata() const { return audio; }
-protected:
-	int16_t audio[160];
-};
+enum class EAmbeType { dstar, dmr };
 
 class CController
 {
@@ -54,8 +45,8 @@ protected:
 	std::vector<std::shared_ptr<CDV3003>> dmr_device, dstar_device;
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
-	std::vector<CAudioBlock> dmr_audio_block, dstar_audio_block;
-	std::vector<CPacketQueue> dmr_packet_queue, dstar_packet_queue;
+	CCodec2 c2_16{false};
+	CCodec2 c2_32{true};
 
 	bool InitDevices();
 	void IncrementDMRVocoder(void);
@@ -63,6 +54,8 @@ protected:
 	// processing threads
 	void ReadReflector();
 	void ReadAmbeDevices();
+	void ReadDevice(std::shared_ptr<CDV3003> dv3003, EAmbeType type);
+	void AddFDSet(int &max, int newfd, fd_set *set) const;
 
 	void CSVtoSet(const std::string &str, std::set<std::string> &set, const std::string &delimiters = ",");
 };
