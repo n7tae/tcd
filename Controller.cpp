@@ -129,9 +129,10 @@ void CController::ReadReflector()
 		if (reader.Receive(&tcpack, 40)) {
 			//create a std::shared_ptr to a new packet
 			auto packet = std::make_shared<CTranscoderPacket>(tcpack);
+			unsigned int devnum;
 			switch (packet->GetCodecIn()) {
 			case ECodecType::dstar:
-				unsigned int devnum = current_dstar_vocoder / 3;
+				devnum = current_dstar_vocoder / 3;
 				//send it to the next available dstar vocoder
 				dstar_device[devnum]->SendData(current_dstar_vocoder%3, packet->GetDStarData());
 				//push the packet onto that vocoder's queue
@@ -140,7 +141,7 @@ void CController::ReadReflector()
 				IncrementDStarVocoder();
 				break;
 			case ECodecType::dmr:
-				unsigned int devnum = current_dmr_vocoder / 3;
+				devnum = current_dmr_vocoder / 3;
 				//send it to the next avaiable dmr vocoder
 				dmr_device[devnum]->SendData(current_dmr_vocoder%3, packet->GetDMRData());
 				//push the packet onto that vocoder's queue

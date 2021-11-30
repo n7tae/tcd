@@ -31,6 +31,7 @@
 
 #files
 configure.h
+configure.mk
 
 # Executables
 tcd
