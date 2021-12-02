@@ -35,9 +35,23 @@ bool CController::Start()
 void CController::Stop()
 {
 	keep_running = false;
-	reflectorThread.get();
-	ambeThread.get();
+	if (reflectorThread.valid())
+		reflectorThread.get();
+	if (ambeThread.valid())
+		ambeThread.get();
 	reader.Close();
+	for (auto &it : dstar_device)
+	{
+		it->CloseDevice();
+		it.reset();
+	}
+	dstar_device.clear();
+	for (auto &it : dmr_device)
+	{
+		it->CloseDevice();
+		it.reset();
+	}
+	dmr_device.clear();
 }
 
 bool CController::InitDevices()

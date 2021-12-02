@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <unistd.h>
 #include <iostream>
 
 #include "Controller.h"
@@ -23,6 +24,8 @@ int main()
 	CController controller;
 	if (controller.Start())
 		return EXIT_FAILURE;
+
+	pause();
 
 	controller.Stop();
 
