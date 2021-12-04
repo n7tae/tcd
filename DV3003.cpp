@@ -122,12 +122,12 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 		std::cerr << "error when opening " << ttyname << ": " << strerror(errno) << std::endl;
 		return true;
 	}
-	std::cout << "Opened " << ttyname << std::endl;
 
 	if (SetBaudRate(baudrate))
 		return true;
 
 	devicepath.assign(ttyname);
+	std::cout << "Opened " << devicepath << std::endl;
 
 	return false;
 }
@@ -221,7 +221,7 @@ bool CDV3003::InitDV3003()
 	}
 	strncpy(versionstr, responsePacket.payload.ctrl.data.version, sizeof(version));
 	version.assign(versionstr);
-	std::cout << "Found " << prodId << " version " << version << std::endl;
+	std::cout << "Found " << prodId << " version " << version << " at " << devicepath << std::endl;
 	return false;
 }
 
