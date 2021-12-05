@@ -82,7 +82,7 @@ bool CController::InitDevices()
 			a3003->InitDV3003();
 
 		// set each of the 3 vocoders to the current type
-		for (uint8_t channel=PKT_CHANNEL0; channel<PKT_CHANNEL2; channel++)
+		for (uint8_t channel=PKT_CHANNEL0; channel<=PKT_CHANNEL2; channel++)
 		{
 			if (a3003->ConfigureCodec(channel, type))
 				return true;
@@ -215,6 +215,7 @@ void CController::AddFDSet(int &max, int newfd, fd_set *set) const
 		max = newfd;
 	FD_SET(newfd, set);
 }
+
 void CController::ReadAmbeDevices()
 {
 	while (keep_running)
@@ -234,7 +235,7 @@ void CController::ReadAmbeDevices()
 		tv.tv_sec = 0;
 		tv.tv_usec = 40000;
 		auto rval = select(maxfd, &FdSet, nullptr, nullptr, &tv);
-		if (rval < 1)
+		if (rval < 0)
 		{
 			std::cerr << "select() ERROR reading AMBE devices: " << strerror(errno) << std::endl;
 		}

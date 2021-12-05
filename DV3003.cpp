@@ -125,6 +125,7 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 
 	if (SetBaudRate(baudrate))
 		return true;
+	std::cout << "Baudrade it set to " << baudrate << std::endl;
 
 	devicepath.assign(ttyname);
 	std::cout << "Opened " << devicepath << std::endl;
@@ -134,8 +135,6 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 
 bool CDV3003::InitDV3003()
 {
-	char prodId[17];
-	char versionstr[49];
 	SDV3003_Packet responsePacket, ctrlPacket;
 
 	// ********** hard reset *************
@@ -159,6 +158,8 @@ bool CDV3003::InitDV3003()
 	   std::cerr << "InitDV3003: invalid response to reset" << std::endl;
 	   return true;
 	}
+
+	std::cout << "Successfully reset " << devicepath << std::endl;
 
 	// ********** turn off parity *********
 	ctrlPacket.header.payload_length = htons(4);
@@ -184,6 +185,8 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
+	std::cout << "Successfully disabled parity on " << devicepath << std::endl;
+
 	// ********* Product ID and Version *************
 	ctrlPacket.header.payload_length = htons(1);
 	ctrlPacket.field_id = PKT_PRODID;
@@ -201,8 +204,7 @@ bool CDV3003::InitDV3003()
 	   std::cerr << "InitDV3003: invalid response to product id query" << std::endl;
 	   return true;
 	}
-	strncpy(prodId, responsePacket.payload.ctrl.data.prodid, sizeof(prodId));
-	productid.assign(prodId);
+	productid.assign(responsePacket.payload.ctrl.data.prodid);
 
 	ctrlPacket.field_id = PKT_VERSTRING;
 	if (write(fd, &ctrlPacket, packet_size(ctrlPacket)) == -1) {
@@ -219,9 +221,8 @@ bool CDV3003::InitDV3003()
 	   std::cerr << "InitDV3003: invalid response to version query" << std::endl;
 	   return true;
 	}
-	strncpy(versionstr, responsePacket.payload.ctrl.data.version, sizeof(version));
-	version.assign(versionstr);
-	std::cout << "Found " << prodId << " version " << version << " at " << devicepath << std::endl;
+	version.assign(responsePacket.payload.ctrl.data.version);
+	std::cout << "Found " << productid << " version " << version << " at " << devicepath << std::endl;
 	return false;
 }
 
