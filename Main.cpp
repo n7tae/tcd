@@ -1,4 +1,4 @@
-// urfd -- The universal reflector
+// tcd - a hybrid transcoder using DVSI hardware and Codec2 software
 // Copyright © 2021 Thomas A. Early N7TAE
 //
 // This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,8 @@ int main()
 	CController controller;
 	if (controller.Start())
 		return EXIT_FAILURE;
+
+	std::cout << "Hybrid Transcoder Version #211205 Successfully started" << std::endl;
 
 	pause();
 

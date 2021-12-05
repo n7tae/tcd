@@ -25,7 +25,6 @@
 
 #include "codec2.h"
 #include "DV3003.h"
-#include "configure.h"
 #include "UnixDgramSocket.h"
 
 enum class EAmbeType { dstar, dmr };
@@ -33,10 +32,9 @@ enum class EAmbeType { dstar, dmr };
 class CController
 {
 public:
-	CController() : dmr_vocoder_count(0), current_dmr_vocoder(0), dstar_vocoder_count(0), current_dstar_vocoder(0), keep_running(true) {}
+	CController();
 	bool Start();
 	void Stop();
-	bool IsRunning() { return keep_running; }
 
 protected:
 	unsigned int dmr_vocoder_count, current_dmr_vocoder, dstar_vocoder_count, current_dstar_vocoder;
@@ -56,6 +54,4 @@ protected:
 	void ReadAmbeDevices();
 	void ReadDevice(std::shared_ptr<CDV3003> dv3003, EAmbeType type);
 	void AddFDSet(int &max, int newfd, fd_set *set) const;
-
-	void CSVtoSet(const std::string &str, std::set<std::string> &set, const std::string &delimiters = ",");
 };

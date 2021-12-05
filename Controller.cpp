@@ -14,11 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <unistd.h>
 #include <sys/select.h>
 #include <iostream>
 
 #include "TranscoderPacket.h"
 #include "Controller.h"
+
+CController::CController() : dmr_vocoder_count(0), current_dmr_vocoder(0), dstar_vocoder_count(0), current_dstar_vocoder(0), keep_running(true)
+{
+}
 
 bool CController::Start()
 {
@@ -56,12 +61,27 @@ void CController::Stop()
 
 bool CController::InitDevices()
 {
-	// unpack all the device paths
 	std::set<std::string> deviceset;
-	CSVtoSet(DEVICES, deviceset);
+	std::string device;
+
+	for (int i=0; i<32; i++) {
+		device.assign("/dev/ttyUSB");
+		device += std::to_string(i);
+
+		if (access(device.c_str(), R_OK | W_OK))
+			break;
+		else
+			deviceset.insert(device);
+	}
+
+	if (deviceset.empty()) {
+		std::cerr << "could not find a device!" << std::endl;
+		return true;
+	}
+
 	if (2 > deviceset.size())
 	{
-		std::cerr << "You must specify at least two DVSI 3003 devices" << std::endl;
+		std::cerr << "You need at least two DVSI 3003 devices" << std::endl;
 		return true;
 	}
 
@@ -105,21 +125,6 @@ bool CController::InitDevices()
 	}
 
 	return false;
-}
-
-void CController::CSVtoSet(const std::string &str, std::set<std::string> &set, const std::string &delimiters)
-{
-	auto lastPos = str.find_first_not_of(delimiters, 0);	// Skip delimiters at beginning.
-	auto pos = str.find_first_of(delimiters, lastPos);	// Find first non-delimiter.
-
-	while (std::string::npos != pos || std::string::npos != lastPos)
-	{
-		std::string element = str.substr(lastPos, pos-lastPos);
-		set.insert(element);
-
-		lastPos = str.find_first_not_of(delimiters, pos);	// Skip delimiters.
-		pos = str.find_first_of(delimiters, lastPos);	// Find next non-delimiter.
-	}
 }
 
 void CController::IncrementDMRVocoder()

@@ -125,10 +125,10 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 
 	if (SetBaudRate(baudrate))
 		return true;
-	std::cout << "Baudrade it set to " << baudrate << std::endl;
+	//std::cout << "Baudrate it set to " << baudrate << std::endl;
 
 	devicepath.assign(ttyname);
-	std::cout << "Opened " << devicepath << std::endl;
+	//std::cout << "Opened " << devicepath << std::endl;
 
 	return false;
 }
@@ -159,7 +159,7 @@ bool CDV3003::InitDV3003()
 	   return true;
 	}
 
-	std::cout << "Successfully reset " << devicepath << std::endl;
+	//std::cout << "Successfully reset " << devicepath << std::endl;
 
 	// ********** turn off parity *********
 	ctrlPacket.header.payload_length = htons(4);
@@ -185,7 +185,7 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
-	std::cout << "Successfully disabled parity on " << devicepath << std::endl;
+	//std::cout << "Successfully disabled parity on " << devicepath << std::endl;
 
 	// ********* Product ID and Version *************
 	ctrlPacket.header.payload_length = htons(1);
@@ -262,7 +262,7 @@ bool CDV3003::ConfigureCodec(uint8_t pkt_ch, Encoding type)
 		std::cerr << "codec config response packet failed" << std::endl;
 		return true;
 	};
-	std::cout << "channel " << (unsigned int)pkt_ch << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
+	//std::cout << "channel " << (unsigned int)pkt_ch << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
 	return false;
 }
 

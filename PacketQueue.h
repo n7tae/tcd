@@ -2,7 +2,7 @@
 
 //  Copyright © 2015 Jean-Luc Deltombe (LX3JL). All rights reserved.
 
-// urfd -- The universal reflector
+// tcd - a hybrid transcoder using DVSI hardware and Codec2 software
 // Copyright © 2021 Thomas A. Early N7TAE
 //
 // This program is free software: you can redistribute it and/or modify
