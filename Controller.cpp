@@ -382,19 +382,12 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 		codec.assign("NONE");
 		break;
 	}
-	std::cout << title << std::endl;
-	std::cout << "Module: '" << p->GetModule() << "' Stream ID: " << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase << " Codec in: " << codec << std::endl;
-	if (p->IsSecond() || p->IsLast())
-	{
-		std::cout << "Packet is ";
-		if (p->IsSecond())
-			std::cout << "a second packet";
-		if (p->IsSecond() && p->IsLast())
-			std::cout << " and ";
-		if (p->IsLast())
-			std::cout << "the last packet";
-		std::cout << std::endl;
-	}
+	std::cout << title << ": Module='" << p->GetModule() << "' Stream ID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase << " Codec in is " << codec;
+	if (p->IsSecond())
+		std::cout << " IsSecond";
+	if (p->IsLast())
+		std::cout << " IsLast";
+	std::cout << std::endl;
 	auto width = std::cout.width(2);
 	auto fill = std::cout.fill('0');
 	if (p->DStarIsSet())
