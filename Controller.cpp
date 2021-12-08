@@ -148,6 +148,9 @@ void CController::ReadReflector()
 		if (reader.Receive(&tcpack, 40)) {
 			//create a std::shared_ptr to a new packet
 			auto packet = std::make_shared<CTranscoderPacket>(tcpack);
+#ifdef DEBUG
+			Dump(packet, "Incoming TC Packet:");
+#endif
 			unsigned int devnum;
 			switch (packet->GetCodecIn()) {
 			case ECodecType::dstar:
@@ -350,6 +353,72 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 			// send the packet over the socket
 			socket.Send(spPacket->GetTCPacket());
 			// the socket will automatically close after sending
+#ifdef DEBUG
+			Dump(spPacket, "Completed Transcoder packet:");
+#endif
 		}
 	}
 }
+
+#ifdef DEBUG
+void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::string &title) const
+{
+	std::string codec;
+	switch (p->GetCodecIn())
+	{
+	case ECodecType::dstar:
+		codec.assign("DStar");
+		break;
+	case ECodecType::dmr:
+		codec.assign("DMR");
+		break;
+	case ECodecType::c2_1600:
+		codec.assign("C2-1600");
+		break;
+	case ECodecType::c2_3200:
+		codec.assign("C2-3200");
+		break;
+	default:
+		codec.assign("NONE");
+		break;
+	}
+	std::cout << title << std::endl;
+	std::cout << "Module: '" << p->GetModule() << "' Stream ID: " << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase << " Codec in: " << codec << std::endl;
+	if (p->IsSecond() || p->IsLast())
+	{
+		std::cout << "Packet is ";
+		if (p->IsSecond())
+			std::cout << "a second packet";
+		if (p->IsSecond() && p->IsLast())
+			std::cout << " and ";
+		if (p->IsLast())
+			std::cout << "the last packet";
+	}
+	auto width = std::cout.width(2);
+	auto fill = std::cout.fill('0');
+	if (p->DStarIsSet())
+	{
+		std::cout << "DStar data: ";
+		for (unsigned int i=0; i<9; i++)
+			std::cout << p->GetDStarData()[i];
+		std::cout << std::endl;
+	}
+	if (p->DMRIsSet())
+	{
+		std::cout << "DMR  Data: ";
+		for (unsigned int i=0; i<9; i++)
+			std::cout << p->GetDMRData()[i];
+		std::cout << std::endl;
+	 }
+	 if (p->M17IsSet())
+	 {
+		std::cout << "M17  Data: ";
+		for (unsigned int i=0; i<16; i++)
+			std::cout << p->GetM17Data()[i];
+		std::cout << std::endl;
+	}
+	std::cout << std::dec;
+	std::cout.width(width);
+	std::cout.fill(fill);
+}
+#endif

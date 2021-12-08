@@ -26,6 +26,7 @@
 #include "codec2.h"
 #include "DV3003.h"
 #include "UnixDgramSocket.h"
+#include "configure.h"
 
 enum class EAmbeType { dstar, dmr };
 
@@ -54,4 +55,7 @@ protected:
 	void ReadAmbeDevices();
 	void ReadDevice(std::shared_ptr<CDV3003> dv3003, EAmbeType type);
 	void AddFDSet(int &max, int newfd, fd_set *set) const;
+#ifdef DEBUG
+	void Dump(const std::shared_ptr<CTranscoderPacket> packet, const std::string &title) const;
+#endif
 };
