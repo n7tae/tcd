@@ -393,6 +393,7 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 			std::cout << " and ";
 		if (p->IsLast())
 			std::cout << "the last packet";
+		std::cout << std::endl;
 	}
 	auto width = std::cout.width(2);
 	auto fill = std::cout.fill('0');
@@ -400,21 +401,21 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 	{
 		std::cout << "DStar data: ";
 		for (unsigned int i=0; i<9; i++)
-			std::cout << p->GetDStarData()[i];
+			std::cout << unsigned(p->GetDStarData()[i]);
 		std::cout << std::endl;
 	}
 	if (p->DMRIsSet())
 	{
 		std::cout << "DMR  Data: ";
 		for (unsigned int i=0; i<9; i++)
-			std::cout << p->GetDMRData()[i];
+			std::cout << unsigned(p->GetDMRData()[i]);
 		std::cout << std::endl;
 	 }
 	 if (p->M17IsSet())
 	 {
 		std::cout << "M17  Data: ";
 		for (unsigned int i=0; i<16; i++)
-			std::cout << p->GetM17Data()[i];
+			std::cout << unsigned(p->GetM17Data()[i]);
 		std::cout << std::endl;
 	}
 	std::cout << std::dec;

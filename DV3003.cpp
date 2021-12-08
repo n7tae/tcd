@@ -337,7 +337,7 @@ bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
 	const uint16_t len = 323;
 	p.header.payload_length = htons(len);
 	p.header.packet_type = PKT_SPEECH;
-	p.field_id = channel;
+	p.field_id = channel + PKT_CHANNEL0;
 	p.payload.audio.speechd = 0x0U;
 	p.payload.audio.num_samples = 160U;
 	for (int i=0; i<160; i++)
@@ -359,7 +359,7 @@ bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
 	p.start_byte = PKT_HEADER;
 	p.header.payload_length = htons(12);
 	p.header.packet_type = PKT_CHANNEL;
-	p.field_id = channel;
+	p.field_id = channel + PKT_CHANNEL0;
 	p.payload.ambe.num_bits = 72U;
 	p.payload.ambe.chand = 0x1U;
 	memcpy(p.payload.ambe.data, data, 9);
