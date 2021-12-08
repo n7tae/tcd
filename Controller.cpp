@@ -324,19 +324,19 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 		// we've received the audio and we've calculated the m17 data, now we just need to
 		// calculate the other ambe data
 		if (type == EAmbeType::dmr) {
+			//send the audio packet to the next available dstar vocoder
+			dstar_device[current_dstar_vocoder/3]->SendAudio(current_dstar_vocoder%3, spPacket->GetAudio());
+			//push the packet onto the dstar vocoder's queue
+			dstar_device[current_dstar_vocoder/3]->packet_queue.push(spPacket);
+			//increment the dmr vocoder index
+			IncrementDStarVocoder();
+		} else /* the dmr/dstar type is dstar */ {
 			//send the audio packet to the next available dmr vocoder
-			device->SendAudio(current_dmr_vocoder % 3, spPacket->GetAudio());
+			dmr_device[current_dmr_vocoder/3]->SendAudio(current_dmr_vocoder%3, spPacket->GetAudio());
 			//push the packet onto the dmr vocoder's queue
-			device->packet_queue.push(spPacket);
+			dmr_device[current_dmr_vocoder/3]->packet_queue.push(spPacket);
 			//increment the dmr vocoder index
 			IncrementDMRVocoder();
-		} else /* the dmr/dstar type is dstar */ {
-			//send the audio packet to the next available dstar vocoder
-			device->SendAudio(current_dstar_vocoder % 3, spPacket->GetAudio());
-			//push the packet onto the dstar vocoder's queue
-			device->packet_queue.push(spPacket);
-			//increment the dstar vocoder index
-			IncrementDStarVocoder();
 		}
 	} else /* the response is ambe */ {
 		if (type == EAmbeType::dmr) {
