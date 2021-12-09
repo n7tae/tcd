@@ -260,20 +260,24 @@ void CController::ReadAmbeDevices()
 		}
 		//wait for up to 40 ms to read anthing from all devices
 		if (rval > 0) {
+			if (rval > 1)
+				std::cout << "GOT MULTIPLE READ REQUESTS, " << rval << std::endl;
 			// from the device file descriptor, we'll know if it's dstar or dmr
-			for (unsigned int i=0 ; i<dmr_device.size(); i++)
-			{
-				if (FD_ISSET(dmr_device[i]->GetFd(), &FdSet))
-				{
-					ReadDevice(dmr_device[i], EAmbeType::dmr);
-					std::cout << "Read DMR device " << i << std::endl;
-				}
-			}
 			for (unsigned int i=0 ; i<dstar_device.size(); i++)
 			{
 				if (FD_ISSET(dstar_device[i]->GetFd(), &FdSet))
 				{
 					ReadDevice(dstar_device[i], EAmbeType::dstar);
+					FD_CLR(dstar_device[i]->GetFd(), &FdSet);
+				}
+			}
+			for (unsigned int i=0 ; i<dmr_device.size(); i++)
+			{
+				if (FD_ISSET(dmr_device[i]->GetFd(), &FdSet))
+				{
+					ReadDevice(dmr_device[i], EAmbeType::dmr);
+					FD_CLR(dmr_device[i]->GetFd(), &FdSet);
+					std::cout << "Read DMR device " << i << std::endl;
 				}
 			}
 		}
