@@ -87,8 +87,8 @@ bool CController::InitDevices()
 
 	// now initialize each device
 
-	// the first one will be a dstar device
-	Encoding type = Encoding::dstar;
+	// the first one will be a dmr device
+	Encoding type = Encoding::dmr;
 	for (const auto devpath : deviceset)
 	{
 		// instantiate it
