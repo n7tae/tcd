@@ -56,6 +56,14 @@ public:
 		mutex.unlock();
 	}
 
+	std::size_t size()
+	{
+		mutex.lock();
+		auto s = queue.size();
+		mutex.unlock();
+		return s;
+	}
+
 protected:
 	std::mutex mutex;
 	std::queue<std::shared_ptr<CTranscoderPacket>> queue;

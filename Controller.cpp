@@ -124,6 +124,8 @@ bool CController::InitDevices()
 		type = (type == Encoding::dstar) ? Encoding::dmr : Encoding::dstar;
 	}
 
+	std::cout << "Device count: DStar=" << dstar_device.size() << " DMR=" << dmr_device.size() << std::endl;
+
 	return false;
 }
 
@@ -212,7 +214,7 @@ void CController::ReadReflector()
 				dmr_device[devnum]->packet_queue.push(packet);
 				//increment the dmr vocoder index
 				IncrementDMRVocoder();
-				std::cout << "USE COUNT: " << packet.use_count() << std::endl;
+				std::cout << "packet_queue sizes: DStar=" << dstar_device[0]->packet_queue.size() << " DMR=" << dmr_device[0]->packet_queue.size() << std::endl;
 				break;
 			case ECodecType::none:
 			default:
