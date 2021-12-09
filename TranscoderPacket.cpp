@@ -87,7 +87,7 @@ void CTranscoderPacket::SetDStarData(const uint8_t *dstar)
 	memcpy(tcpacket.dstar, dstar, 9);
 	dstar_set = true;
 }
-void CTranscoderPacket::SetDMRData(const uint8_t *dmr )
+void CTranscoderPacket::SetDMRData(const uint8_t *dmr)
 {
 	memcpy(tcpacket.dmr, dmr, 9);
 	dmr_set = true;

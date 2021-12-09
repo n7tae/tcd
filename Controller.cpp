@@ -204,14 +204,18 @@ void CController::ReadReflector()
 				dstar_device[devnum]->packet_queue.push(packet);
 				//increment the dstar vocoder index
 				IncrementDStarVocoder();
-				// encode the audio to dmr
-				devnum = current_dmr_vocoder / 3;
-				//send the audio to the corrent dmr vocoder
-				dmr_device[devnum]->SendAudio(current_dmr_vocoder%3, packet->GetAudio());
-				//push the packet onto the dmr vocoder's queue
-				dmr_device[devnum]->packet_queue.push(packet);
-				//increment the dmr vocoder index
-				IncrementDMRVocoder();
+				{
+					// encode the audio to dmr
+					// make a second shared ptr to the same packet
+					auto packet2 = std::make_shared<CTranscoderPacket>(packet);
+					devnum = current_dmr_vocoder / 3;
+					//send the audio to the corrent dmr vocoder
+					dmr_device[devnum]->SendAudio(current_dmr_vocoder%3, packet2->GetAudio());
+					//push the packet onto the dmr vocoder's queue
+					dmr_device[devnum]->packet_queue.push(packet2);
+					//increment the dmr vocoder index
+					IncrementDMRVocoder();
+				}
 				break;
 			case ECodecType::none:
 			default:
