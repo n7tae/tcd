@@ -132,7 +132,7 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 
 	devicepath.assign(ttyname);
 #ifdef DEBUG
-	std::cout << "Opened " << devicepath << std::endl;
+	std::cout << "Opened " << devicepath << " using fd " << fd << std::endl;
 #endif
 
 	return false;
