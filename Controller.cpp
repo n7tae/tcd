@@ -87,8 +87,8 @@ bool CController::InitDevices()
 
 	// now initialize each device
 
-	// the first one will be a dmr device
-	Encoding type = Encoding::dmr;
+	// the first one will be a dstar device
+	Encoding type = Encoding::dstar;
 	for (const auto devpath : deviceset)
 	{
 		// instantiate it
@@ -253,7 +253,7 @@ void CController::ReadAmbeDevices()
 		struct timeval tv;
 		tv.tv_sec = 0;
 		tv.tv_usec = 40000;
-		auto rval = select(maxfd, &FdSet, nullptr, nullptr, &tv);
+		auto rval = select(maxfd+1, &FdSet, nullptr, nullptr, &tv);
 		if (rval < 0)
 		{
 			std::cerr << "select() ERROR reading AMBE devices: " << strerror(errno) << std::endl;
