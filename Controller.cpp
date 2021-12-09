@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include <iostream>
+#include <iomanip>
 
 #include "TranscoderPacket.h"
 #include "Controller.h"
@@ -214,7 +215,6 @@ void CController::ReadReflector()
 				dmr_device[devnum]->packet_queue.push(packet);
 				//increment the dmr vocoder index
 				IncrementDMRVocoder();
-				std::cout << "packet_queue sizes: DStar=" << dstar_device[0]->packet_queue.size() << " DMR=" << dmr_device[0]->packet_queue.size() << std::endl;
 				break;
 			case ECodecType::none:
 			default:
@@ -260,8 +260,6 @@ void CController::ReadAmbeDevices()
 		}
 		//wait for up to 40 ms to read anthing from all devices
 		if (rval > 0) {
-			if (rval > 1)
-				std::cout << "GOT MULTIPLE READ REQUESTS, " << rval << std::endl;
 			// from the device file descriptor, we'll know if it's dstar or dmr
 			for (unsigned int i=0 ; i<dstar_device.size(); i++)
 			{
@@ -277,7 +275,6 @@ void CController::ReadAmbeDevices()
 				{
 					ReadDevice(dmr_device[i], EAmbeType::dmr);
 					FD_CLR(dmr_device[i]->GetFd(), &FdSet);
-					std::cout << "Read DMR device " << i << std::endl;
 				}
 			}
 		}
@@ -387,12 +384,6 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 			Dump(spPacket, "Completed Transcoder packet");
 #endif
 		}
-#ifdef DEBUG
-		else
-		{
-			Dump(spPacket, "Not quite ready");
-		}
-#endif
 	}
 }
 
@@ -424,31 +415,28 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 	if (p->IsLast())
 		std::cout << " IsLast";
 	std::cout << std::endl;
-	auto width = std::cout.width(2);
-	auto fill = std::cout.fill('0');
+
 	if (p->DStarIsSet())
 	{
 		std::cout << "DStar data: ";
 		for (unsigned int i=0; i<9; i++)
-			std::cout << unsigned(*(p->GetDStarData()+i));
+			std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDStarData()+i));
 		std::cout << std::endl;
 	}
 	if (p->DMRIsSet())
 	{
 		std::cout << "DMR  Data: ";
 		for (unsigned int i=0; i<9; i++)
-			std::cout << unsigned(*(p->GetDMRData()+i));
+			std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDMRData()+i));
 		std::cout << std::endl;
 	 }
 	 if (p->M17IsSet())
 	 {
 		std::cout << "M17  Data: ";
 		for (unsigned int i=0; i<16; i++)
-			std::cout << unsigned(*(p->GetM17Data()+i));
+			std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetM17Data()+i));
 		std::cout << std::endl;
 	}
 	std::cout << std::dec;
-	std::cout.width(width);
-	std::cout.fill(fill);
 }
 #endif
