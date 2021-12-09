@@ -32,6 +32,7 @@
 #include <cerrno>
 
 #include "DV3003.h"
+#include "configure.h"
 
 CDV3003::CDV3003(Encoding t) : type(t), fd(-1)
 {
@@ -125,10 +126,14 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 
 	if (SetBaudRate(baudrate))
 		return true;
-	//std::cout << "Baudrate it set to " << baudrate << std::endl;
+#ifdef DEBUG
+	std::cout << ttyname << " baudrate it set to " << baudrate << std::endl;
+#endif
 
 	devicepath.assign(ttyname);
-	//std::cout << "Opened " << devicepath << std::endl;
+#ifdef DEBUG
+	std::cout << "Opened " << devicepath << std::endl;
+#endif
 
 	return false;
 }
@@ -158,8 +163,9 @@ bool CDV3003::InitDV3003()
 	   std::cerr << "InitDV3003: invalid response to reset" << std::endl;
 	   return true;
 	}
-
-	//std::cout << "Successfully reset " << devicepath << std::endl;
+#ifdef DEBUG
+	std::cout << "Successfully reset " << devicepath << std::endl;
+#endif
 
 	// ********** turn off parity *********
 	ctrlPacket.header.payload_length = htons(4);
@@ -185,7 +191,9 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
-	//std::cout << "Successfully disabled parity on " << devicepath << std::endl;
+#ifdef DEBUG
+	std::cout << "Successfully disabled parity on " << devicepath << std::endl;
+#endif
 
 	// ********* Product ID and Version *************
 	ctrlPacket.header.payload_length = htons(1);
@@ -262,7 +270,9 @@ bool CDV3003::ConfigureCodec(uint8_t pkt_ch, Encoding type)
 		std::cerr << "codec config response packet failed" << std::endl;
 		return true;
 	};
-	//std::cout << "channel " << (unsigned int)pkt_ch << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
+#ifdef DEBUG
+	std::cout << devicepath << " channel " << (unsigned int)pkt_ch << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
+#endif
 	return false;
 }
 
