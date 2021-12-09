@@ -197,7 +197,7 @@ void CController::ReadReflector()
 					}
 				}
 				// encode the audio to dstar
-				unsigned int devnum = current_dstar_vocoder / 3;
+				devnum = current_dstar_vocoder / 3;
 				//send the audio to the current dstar vocoder
 				dstar_device[devnum]->SendAudio(current_dstar_vocoder%3, packet->GetAudio());
 				//push the packet onto the vocoder's queue
