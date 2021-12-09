@@ -212,6 +212,14 @@ void CController::ReadReflector()
 				dmr_device[devnum]->packet_queue.push(packet);
 				//increment the dmr vocoder index
 				IncrementDMRVocoder();
+				break;
+			case ECodecType::none:
+			default:
+				std::cerr << "ERROR: Got a reflector packet with unknown Codec" << std::endl;
+#ifdef DEBUG
+				Dump(packet, "This is what's in it:");
+#endif
+				break;
 			}
 		}
 	}
@@ -306,15 +314,19 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 		// we need to encode the m17
 		//encode the audio to c2_3200 (all ambe input vocodes to ECodecType::c2_3200)
 		uint8_t m17data[8];
-		if (spPacket->IsSecond()) {
+		if (spPacket->IsSecond())
+		{
 			c2_32.codec2_encode(m17data, spPacket->GetAudio());
 			//move the c2_3200 data to the second half of the M17 packet
 			spPacket->SetM17Data(m17data, 8, 8);
-		} else /* the packet is first */ {
+		}
+		else /* the packet is first */
+		{
 			c2_32.codec2_encode(m17data, spPacket->GetAudio());
 			// move it into the packet
 			spPacket->SetM17Data(m17data, 0, 8);
-			if (spPacket->IsLast()) {
+			if (spPacket->IsLast())
+			{
 				// we have an odd number of packets, so we have to do finish up the m17 packet
 				const uint8_t silence[] = {0x00, 0x01, 0x43, 0x09, 0xe4, 0x9c, 0x08, 0x21 };
 				//put codec silence in the second half of the codec
@@ -323,14 +335,17 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 		}
 		// we've received the audio and we've calculated the m17 data, now we just need to
 		// calculate the other ambe data
-		if (type == EAmbeType::dmr) {
+		if (type == EAmbeType::dmr)
+		{
 			//send the audio packet to the next available dstar vocoder
 			dstar_device[current_dstar_vocoder/3]->SendAudio(current_dstar_vocoder%3, spPacket->GetAudio());
 			//push the packet onto the dstar vocoder's queue
 			dstar_device[current_dstar_vocoder/3]->packet_queue.push(spPacket);
 			//increment the dmr vocoder index
 			IncrementDStarVocoder();
-		} else /* the dmr/dstar type is dstar */ {
+		}
+		else /* the dmr/dstar type is dstar */
+		{
 			//send the audio packet to the next available dmr vocoder
 			dmr_device[current_dmr_vocoder/3]->SendAudio(current_dmr_vocoder%3, spPacket->GetAudio());
 			//push the packet onto the dmr vocoder's queue
@@ -338,12 +353,19 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 			//increment the dmr vocoder index
 			IncrementDMRVocoder();
 		}
-	} else /* the response is ambe */ {
-		if (type == EAmbeType::dmr) {
+	}
+	else /* the response is ambe data */
+	{
+		if (type == EAmbeType::dmr)
+		{
 			spPacket->SetDMRData(devpacket.payload.ambe.data);
-		} else {
+		}
+		else
+		{
 			spPacket->SetDStarData(devpacket.payload.ambe.data);
 		}
+
+		// send it off, if it's done
 		if (spPacket->AllCodecsAreSet()) {
 			// open a socket to the reflector channel
 			CUnixDgramWriter socket;
@@ -354,9 +376,15 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 			socket.Send(spPacket->GetTCPacket());
 			// the socket will automatically close after sending
 #ifdef DEBUG
-			Dump(spPacket, "Completed Transcoder packet:");
+			Dump(spPacket, "Completed Transcoder packet");
 #endif
 		}
+#ifdef DEBUG
+		else
+		{
+			Dump(spPacket, "Not quite ready");
+		}
+#endif
 	}
 }
 
@@ -394,21 +422,21 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 	{
 		std::cout << "DStar data: ";
 		for (unsigned int i=0; i<9; i++)
-			std::cout << unsigned(p->GetDStarData()[i]);
+			std::cout << unsigned(*(p->GetDStarData()+i));
 		std::cout << std::endl;
 	}
 	if (p->DMRIsSet())
 	{
 		std::cout << "DMR  Data: ";
 		for (unsigned int i=0; i<9; i++)
-			std::cout << unsigned(p->GetDMRData()[i]);
+			std::cout << unsigned(*(p->GetDMRData()+i));
 		std::cout << std::endl;
 	 }
 	 if (p->M17IsSet())
 	 {
 		std::cout << "M17  Data: ";
 		for (unsigned int i=0; i<16; i++)
-			std::cout << unsigned(p->GetM17Data()[i]);
+			std::cout << unsigned(*(p->GetM17Data()+i));
 		std::cout << std::endl;
 	}
 	std::cout << std::dec;
