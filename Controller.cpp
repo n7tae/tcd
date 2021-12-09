@@ -425,14 +425,14 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 	}
 	if (p->DMRIsSet())
 	{
-		std::cout << "DMR  Data: ";
+		std::cout << "DMR   Data: ";
 		for (unsigned int i=0; i<9; i++)
 			std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDMRData()+i));
 		std::cout << std::endl;
 	 }
 	 if (p->M17IsSet())
 	 {
-		std::cout << "M17  Data: ";
+		std::cout << "M17   Data: ";
 		for (unsigned int i=0; i<16; i++)
 			std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetM17Data()+i));
 		std::cout << std::endl;
