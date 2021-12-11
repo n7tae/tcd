@@ -17,6 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <vector>
+#include <map>
 #include <set>
 #include <memory>
 #include <atomic>
@@ -42,6 +43,7 @@ protected:
 	std::atomic<bool> keep_running;
 	std::future<void> reflectorThread, ambeThread;
 	std::vector<std::shared_ptr<CDV3003>> dmr_device, dstar_device;
+	std::map<char, int16_t[160]> audio_store;
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
 	CCodec2 c2_16{false};

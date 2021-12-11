@@ -142,9 +142,6 @@ void CController::IncrementDStarVocoder()
 
 void CController::ReadReflector()
 {
-	// local audio storage
-	static int16_t audio[160];
-
 	while (keep_running) {
 		STCPacket tcpack;
 		//wait up to 40 ms to read something on the unix port
@@ -179,7 +176,7 @@ void CController::ReadReflector()
 				if (packet->IsSecond()) {
 					if (packet->GetCodecIn() == ECodecType::c2_1600) {
 						//copy the audio from local storage
-						memcpy(packet->GetAudio(), audio, 320);
+						memcpy(packet->GetAudio(), audio_store[packet->GetModule()], 320);
 					} else /* codec_in is ECodecType::c2_3200 */ {
 						//decode the second 8 data bytes
 						//move the 160 audio samples to the packet
@@ -193,8 +190,8 @@ void CController::ReadReflector()
 						//decode it
 						c2_16.codec2_decode(tmp, packet->GetM17Data()); // 8 bytes input produces 320 audio points
 						//move the first and second half
-						memcpy(packet->GetAudio(), tmp, 160*sizeof(int16_t));
-						memcpy(audio, tmp+160, 160*sizeof(int16_t));
+						memcpy(packet->GetAudio(), tmp, 320);
+						memcpy(audio_store[packet->GetModule()], tmp+160, 320);
 					} else /* codec_in is ECodecType::c2_3200 */ {
 						c2_32.codec2_decode(packet->GetAudio(), packet->GetM17Data());
 					}
