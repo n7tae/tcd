@@ -329,7 +329,7 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 			spPacket->SetM17Data(m17data, 0, 8);
 			if (spPacket->IsLast())
 			{
-				// we have an odd number of packets, so we have to do finish up the m17 packet
+				// we have an odd number of packets, so we have to finish up the m17 packet
 				const uint8_t silence[] = {0x00, 0x01, 0x43, 0x09, 0xe4, 0x9c, 0x08, 0x21 };
 				//put codec silence in the second half of the codec
 				spPacket->SetM17Data(silence, 8, 8);
@@ -413,27 +413,28 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 		std::cout << " IsLast";
 	std::cout << std::endl;
 
-	if (p->DStarIsSet())
-	{
-		std::cout << "DStar data: ";
-		for (unsigned int i=0; i<9; i++)
-			std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDStarData()+i));
-		std::cout << std::endl;
-	}
-	if (p->DMRIsSet())
-	{
-		std::cout << "DMR   Data: ";
-		for (unsigned int i=0; i<9; i++)
-			std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDMRData()+i));
-		std::cout << std::endl;
-	 }
-	 if (p->M17IsSet())
-	 {
-		std::cout << "M17   Data: ";
-		for (unsigned int i=0; i<16; i++)
-			std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetM17Data()+i));
-		std::cout << std::endl;
-	}
+	// if (p->DStarIsSet())
+	// {
+	// 	std::cout << "DStar data: ";
+	// 	for (unsigned int i=0; i<9; i++)
+	// 		std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDStarData()+i));
+	// 	std::cout << std::endl;
+	// }
+	// if (p->DMRIsSet())
+	// {
+	// 	std::cout << "DMR   Data: ";
+	// 	for (unsigned int i=0; i<9; i++)
+	// 		std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDMRData()+i));
+	// 	std::cout << std::endl;
+	//  }
+	//  if (p->M17IsSet())
+	//  {
+	// 	std::cout << "M17   Data: ";
+	// 	for (unsigned int i=0; i<16; i++)
+	// 		std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetM17Data()+i));
+	// 	std::cout << std::endl;
+	// }
+
 	std::cout << std::dec;
 }
 #endif
