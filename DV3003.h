@@ -110,7 +110,7 @@ public:
 	std::string GetProductID() const;
 	std::string GetVersion() const;
 
-	CPacketQueue packet_queue[3];
+	CPacketQueue packet_queue[3];	// we need a queue for each vocoder
 private:
 	const Encoding type;
 	int fd;
