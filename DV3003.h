@@ -110,7 +110,7 @@ public:
 	std::string GetProductID() const;
 	std::string GetVersion() const;
 
-	CPacketQueue packet_queue;
+	CPacketQueue packet_queue[3];
 private:
 	const Encoding type;
 	int fd;

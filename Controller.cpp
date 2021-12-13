@@ -140,6 +140,10 @@ void CController::IncrementDStarVocoder()
 	current_dstar_vocoder = (current_dstar_vocoder + 1) % dstar_vocoder_count;
 }
 
+// Incoming packets from clients with different starting codecs, DStar, DMR, and M17. The transcoder fills
+// in the missing data.
+// AMBE codecs go to the DVSI hardware for decoding to audio. No need to transcode between M17 codecs.
+// Incoming M17 codecs are decoded in software and the audio data send to the two different AMBE encoders.
 void CController::ReadReflector()
 {
 	while (keep_running) {
@@ -151,23 +155,25 @@ void CController::ReadReflector()
 #ifdef DEBUG
 			Dump(packet, "Incoming TC Packet:");
 #endif
-			unsigned int devnum;
+			unsigned int devnum, vocnum;
 			switch (packet->GetCodecIn()) {
 			case ECodecType::dstar:
 				devnum = current_dstar_vocoder / 3;
+				vocnum = current_dstar_vocoder % 3;
 				//send it to the next available dstar vocoder
-				dstar_device[devnum]->SendData(current_dstar_vocoder%3, packet->GetDStarData());
+				dstar_device[devnum]->SendData(vocnum, packet->GetDStarData());
 				//push the packet onto that vocoder's queue
-				dstar_device[devnum]->packet_queue.push(packet);
+				dstar_device[devnum]->packet_queue[vocnum].push(packet);
 				//increment the dstar vocoder index
 				IncrementDStarVocoder();
 				break;
 			case ECodecType::dmr:
 				devnum = current_dmr_vocoder / 3;
+				vocnum = current_dmr_vocoder % 3;
 				//send it to the next avaiable dmr vocoder
-				dmr_device[devnum]->SendData(current_dmr_vocoder%3, packet->GetDMRData());
+				dmr_device[devnum]->SendData(vocnum, packet->GetDMRData());
 				//push the packet onto that vocoder's queue
-				dmr_device[devnum]->packet_queue.push(packet);
+				dmr_device[devnum]->packet_queue[vocnum].push(packet);
 				//increment the dmr vocoder index
 				IncrementDMRVocoder();
 				break;
@@ -198,18 +204,20 @@ void CController::ReadReflector()
 				}
 				// encode the audio to dstar
 				devnum = current_dstar_vocoder / 3;
+				vocnum = current_dstar_vocoder % 3;
 				//send the audio to the current dstar vocoder
-				dstar_device[devnum]->SendAudio(current_dstar_vocoder%3, packet->GetAudio());
+				dstar_device[devnum]->SendAudio(vocnum, packet->GetAudio());
 				//push the packet onto the vocoder's queue
-				dstar_device[devnum]->packet_queue.push(packet);
+				dstar_device[devnum]->packet_queue[vocnum].push(packet);
 				//increment the dstar vocoder index
 				IncrementDStarVocoder();
 				// encode the audio to dmr
 				devnum = current_dmr_vocoder / 3;
+				vocnum = current_dmr_vocoder % 3;
 				//send the audio to the corrent dmr vocoder
-				dmr_device[devnum]->SendAudio(current_dmr_vocoder%3, packet->GetAudio());
+				dmr_device[devnum]->SendAudio(vocnum, packet->GetAudio());
 				//push the packet onto the dmr vocoder's queue
-				dmr_device[devnum]->packet_queue.push(packet);
+				dmr_device[devnum]->packet_queue[vocnum].push(packet);
 				//increment the dmr vocoder index
 				IncrementDMRVocoder();
 				break;
@@ -232,6 +240,7 @@ void CController::AddFDSet(int &max, int newfd, fd_set *set) const
 	FD_SET(newfd, set);
 }
 
+// read transcoded (AMBE or audio) data from DVSI hardware
 void CController::ReadAmbeDevices()
 {
 	while (keep_running)
@@ -278,6 +287,11 @@ void CController::ReadAmbeDevices()
 	}
 }
 
+// Any audio packet recevied from the DVSI vocoders means that the codec_in was AMBE (DStar or DMR).
+// These audio packets need to be encoded, by the complimentary AMBE vocoder _and_ M17.
+// Since code_in was AMBE, the audio will be encoded to c2_3200, and copied to the packet.
+// If we have read AMBE data, it needs to be put back into the packet.
+// If the packet is complete, it can be sent back to the reflector.
 void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 {
 	//save the dmr/dstar type
@@ -307,14 +321,14 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 	}
 
 	//get the packet from either the dstar or dmr vocoder's queue
-	auto spPacket = device->packet_queue.pop();
+	auto spPacket = device->packet_queue[devpacket.field_id-PKT_CHANNEL0].pop();
 
 	if (is_audio) {
 		//move the audio to the CTranscoderPacket
 		for (unsigned int i=0; i<160; i++)
 			spPacket->GetAudio()[i] = ntohs(devpacket.payload.audio.samples[i]);
 		// we need to encode the m17
-		//encode the audio to c2_3200 (all ambe input vocodes to ECodecType::c2_3200)
+		// encode the audio to c2_3200 (all ambe input vocodes to ECodecType::c2_3200)
 		uint8_t m17data[8];
 		if (spPacket->IsSecond())
 		{
@@ -339,19 +353,23 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 		// calculate the other ambe data
 		if (type == EAmbeType::dmr)
 		{
+			const unsigned int devnum = current_dstar_vocoder / 3;
+			const unsigned int vocnum = current_dstar_vocoder % 3;
 			//send the audio packet to the next available dstar vocoder
-			dstar_device[current_dstar_vocoder/3]->SendAudio(current_dstar_vocoder%3, spPacket->GetAudio());
+			dstar_device[devnum]->SendAudio(vocnum, spPacket->GetAudio());
 			//push the packet onto the dstar vocoder's queue
-			dstar_device[current_dstar_vocoder/3]->packet_queue.push(spPacket);
+			dstar_device[devnum]->packet_queue[vocnum].push(spPacket);
 			//increment the dmr vocoder index
 			IncrementDStarVocoder();
 		}
 		else /* the dmr/dstar type is dstar */
 		{
+			const unsigned int devnum = current_dmr_vocoder / 3;
+			const unsigned int vocnum = current_dmr_vocoder % 3;
 			//send the audio packet to the next available dmr vocoder
-			dmr_device[current_dmr_vocoder/3]->SendAudio(current_dmr_vocoder%3, spPacket->GetAudio());
+			dmr_device[devnum]->SendAudio(vocnum, spPacket->GetAudio());
 			//push the packet onto the dmr vocoder's queue
-			dmr_device[current_dmr_vocoder/3]->packet_queue.push(spPacket);
+			dmr_device[devnum]->packet_queue[vocnum].push(spPacket);
 			//increment the dmr vocoder index
 			IncrementDMRVocoder();
 		}
