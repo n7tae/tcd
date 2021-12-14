@@ -148,10 +148,12 @@ void CController::IncrementDStarVocoder()
 // There is no need to transcode between M17 codecs.
 void CController::ReadReflector()
 {
-	while (keep_running) {
+	while (keep_running)
+	{
 		STCPacket tcpack;
 		// wait up to 40 ms to read something on the unix port
-		if (reader.Receive(&tcpack, 40)) {
+		if (reader.Receive(&tcpack, 40))
+		{
 			// create a shared pointer to a new packet
 			// there is only one CTranscoderPacket created for each new STCPacket received from the reflector
 			auto packet = std::make_shared<CTranscoderPacket>(tcpack);
@@ -159,7 +161,8 @@ void CController::ReadReflector()
 			Dump(packet, "Incoming TC Packet:");
 #endif
 			unsigned int devnum, vocnum;
-			switch (packet->GetCodecIn()) {
+			switch (packet->GetCodecIn())
+			{
 			case ECodecType::dstar:
 				devnum = current_dstar_vocoder / 3;
 				vocnum = current_dstar_vocoder % 3;
@@ -182,17 +185,24 @@ void CController::ReadReflector()
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
-				if (packet->IsSecond()) {
-					if (packet->GetCodecIn() == ECodecType::c2_1600) {
+				if (packet->IsSecond())
+				{
+					if (packet->GetCodecIn() == ECodecType::c2_1600)
+					{
 						//copy the audio from local storage
 						memcpy(packet->GetAudio(), audio_store[packet->GetModule()], 320);
-					} else /* codec_in is ECodecType::c2_3200 */ {
+					}
+					else /* codec_in is ECodecType::c2_3200 */
+					{
 						//decode the second 8 data bytes
 						//move the 160 audio samples to the packet
 						c2_32.codec2_decode(packet->GetAudio(), packet->GetM17Data()+8);
 					}
-				} else /* it's a "first packet" */ {
-					if (packet->GetCodecIn() == ECodecType::c2_1600) {
+				}
+				else /* it's a "first packet" */
+				{
+					if (packet->GetCodecIn() == ECodecType::c2_1600)
+					{
 						//c2_1600 encodes 40 ms of audio, 320 points, so...
 						//we need some temprary audio storage:
 						int16_t tmp[320];
@@ -201,7 +211,9 @@ void CController::ReadReflector()
 						//move the first and second half
 						memcpy(packet->GetAudio(), tmp, 320);
 						memcpy(audio_store[packet->GetModule()], tmp+160, 320);
-					} else /* codec_in is ECodecType::c2_3200 */ {
+					}
+					else /* codec_in is ECodecType::c2_3200 */
+					{
 						c2_32.codec2_decode(packet->GetAudio(), packet->GetM17Data());
 					}
 				}
@@ -262,12 +274,12 @@ void CController::ReadAmbeDevices()
 		struct timeval tv;
 		tv.tv_sec = 0;
 		tv.tv_usec = 40000;
+		//wait for up to 40 ms to read something from any devices
 		auto rval = select(maxfd+1, &FdSet, nullptr, nullptr, &tv);
 		if (rval < 0)
 		{
 			std::cerr << "select() ERROR reading AMBE devices: " << strerror(errno) << std::endl;
 		}
-		//wait for up to 40 ms to read anthing from all devices
 		if (rval > 0) {
 			// from the device file descriptor, we'll know if it's dstar or dmr
 			for (unsigned int i=0 ; i<dstar_device.size(); i++)
@@ -310,9 +322,9 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 
 	// get the response type
 	bool is_audio;
-	if (2U == devpacket.header.packet_type)
+	if (PKT_SPEECH == devpacket.header.packet_type)
 		is_audio = true;
-	else if (1U == devpacket.header.packet_type)
+	else if (PKT_CHANNEL == devpacket.header.packet_type)
 		is_audio = false;
 	else
 	{
@@ -326,30 +338,30 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 	//get the packet from either the dstar or dmr vocoder's queue
 	auto spPacket = device->packet_queue[devpacket.field_id-PKT_CHANNEL0].pop();
 
-	if (is_audio) {
+	if (is_audio)
+	{
 		//move the audio to the CTranscoderPacket
 		for (unsigned int i=0; i<160; i++)
 			spPacket->GetAudio()[i] = ntohs(devpacket.payload.audio.samples[i]);
 		// we need to encode the m17
 		// encode the audio to c2_3200 (all ambe input vocodes to ECodecType::c2_3200)
 		uint8_t m17data[8];
+		c2_32.codec2_encode(m17data, spPacket->GetAudio());
 		if (spPacket->IsSecond())
 		{
-			c2_32.codec2_encode(m17data, spPacket->GetAudio());
 			//move the c2_3200 data to the second half of the M17 packet
-			spPacket->SetM17Data(m17data, 8, 8);
+			spPacket->SetM17Data(m17data, EAudioSection::secondhalf);
 		}
 		else /* the packet is first */
 		{
-			c2_32.codec2_encode(m17data, spPacket->GetAudio());
 			// move it into the packet
-			spPacket->SetM17Data(m17data, 0, 8);
+			spPacket->SetM17Data(m17data, EAudioSection::firsthalf);
 			if (spPacket->IsLast())
 			{
 				// we have an odd number of packets, so we have to finish up the m17 packet
 				const uint8_t silence[] = {0x00, 0x01, 0x43, 0x09, 0xe4, 0x9c, 0x08, 0x21 };
 				//put codec silence in the second half of the codec
-				spPacket->SetM17Data(silence, 8, 8);
+				spPacket->SetM17Data(silence, EAudioSection::secondhalf);
 			}
 		}
 		// we've received the audio and we've calculated the m17 data, now we just need to
@@ -390,7 +402,8 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 		}
 
 		// send it off, if it's done
-		if (spPacket->AllCodecsAreSet()) {
+		if (spPacket->AllCodecsAreSet())
+		{
 			// open a socket to the reflector channel
 			CUnixDgramWriter socket;
 			std::string name(TC2REF);
