@@ -263,6 +263,8 @@ bool CDV3003::ConfigureCodec(uint8_t pkt_ch, Encoding type)
 	}
 
 	if ((ntohs(responsePacket.header.payload_length) != 6) ||
+		(responsePacket.field_id != pkt_ch) ||
+		(responsePacket.payload.ctrl.data.resp[0] != 0x00) ||
 	    (responsePacket.payload.ctrl.data.resp[1] != PKT_RATEP) ||
 		(responsePacket.payload.ctrl.data.resp[2] != 0x00) ||
 	    (responsePacket.payload.ctrl.data.resp[3] != PKT_INIT) ||
