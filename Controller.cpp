@@ -18,6 +18,8 @@
 #include <sys/select.h>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
+#include <fstream>
 
 #include "TranscoderPacket.h"
 #include "Controller.h"
@@ -414,9 +416,26 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 			// the socket will automatically close after sending
 #ifdef DEBUG
 			Dump(spPacket, "Completed Transcoder packet");
+			AppendWave(spPacket);
 #endif
 		}
 	}
+}
+
+void CController::AppendWave(const std::shared_ptr<CTranscoderPacket> packet) const
+{
+	std::stringstream sstr;
+	sstr << std::hex << ntohs(packet->GetStreamId()) << ".raw";
+	std::ofstream pcmfile(sstr.str(), std::ofstream::binary);
+	if (pcmfile.good())
+	{
+		for (unsigned int i=0; i<160; i++)
+			pcmfile << packet->GetAudio()[i];
+
+		pcmfile.close();
+	}
+	else
+		std::cerr << "could not open pcm file " << sstr.str();
 }
 
 #ifdef DEBUG
