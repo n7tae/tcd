@@ -237,18 +237,23 @@ bool CDV3003::InitDV3003()
 bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 {
 	SDV3003_Packet controlPacket, responsePacket;
+	const uint8_t ecmode[] { PKT_ECMODE, 0x0, 0x0 };
+	const uint8_t dcmode[] { PKT_DCMODE, 0x0, 0x0 };
 	const uint8_t  dstar[] { PKT_RATEP, 0x01U, 0x30U, 0x07U, 0x63U, 0x40U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x48U };
 	const uint8_t    dmr[] { PKT_RATEP, 0x04U, 0x31U, 0x07U, 0x54U, 0x24U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x6FU, 0x48U };
 	const uint8_t  chfmt[] { PKT_CHANFMT, 0x0, 0x0 };
 	const uint8_t  spfmt[] { PKT_SPCHFMT, 0x0, 0x0 };
 	const uint8_t   gain[] { PKT_GAIN, 0x0, 0x0 };
 	const uint8_t   init[] { PKT_INIT, 0x3U };
+	const uint8_t   resp[] { 0x0, PKT_ECMODE, 0x0, PKT_DCMODE, 0x0, PKT_RATEP, 0x0, PKT_CHANFMT, 0x0, PKT_SPCHFMT, 0x0, PKT_GAIN, 0x0, PKT_INIT, 0x0 };
 
 
 	controlPacket.start_byte = PKT_HEADER;
 	controlPacket.header.payload_length = htons(1 + sizeof(SDV3003_Packet::payload.codec));
 	controlPacket.header.packet_type = PKT_CONTROL;
 	controlPacket.field_id = pkt_ch;
+	memcpy(controlPacket.payload.codec.ecmode, ecmode, 3);
+	memcpy(controlPacket.payload.codec.dcmode, dcmode, 3);
 	if (type == Encoding::dstar)
 	{
 		memcpy(controlPacket.payload.codec.ratep, dstar, 13);
@@ -271,25 +276,14 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 
 	memset(&responsePacket, 0, sizeof(SDV3003_Packet));
 	if (GetResponse(responsePacket)) {
-		std::cerr << "error reading codec config response packet" << std::endl;
+		std::cerr << "error reading vocoder config response packet" << std::endl;
 		return true;
 	}
 
-	if ((ntohs(responsePacket.header.payload_length) != 12) ||
-		(responsePacket.field_id != pkt_ch) ||
-		(responsePacket.payload.ctrl.data.resp[0] != 0x00) ||
-	    (responsePacket.payload.ctrl.data.resp[1] != PKT_RATEP) ||
-		(responsePacket.payload.ctrl.data.resp[2] != 0x00) ||
-	    (responsePacket.payload.ctrl.data.resp[3] != PKT_CHANFMT) ||
-		(responsePacket.payload.ctrl.data.resp[4] != 0x00) ||
-	    (responsePacket.payload.ctrl.data.resp[5] != PKT_SPCHFMT) ||
-		(responsePacket.payload.ctrl.data.resp[6] != 0x00) ||
-	    (responsePacket.payload.ctrl.data.resp[7] != PKT_GAIN) ||
-		(responsePacket.payload.ctrl.data.resp[8] != 0x00) ||
-	    (responsePacket.payload.ctrl.data.resp[9] != PKT_INIT) ||
-		(responsePacket.payload.ctrl.data.resp[10] != 0x00) ) {
-		std::cerr << "codec config response packet failed" << std::endl;
-		dump("Configuration response:", &responsePacket, sizeof(responsePacket));
+	if ((ntohs(responsePacket.header.payload_length) != 16) || (responsePacket.field_id != pkt_ch) || (0 != memcmp(responsePacket.payload.ctrl.data.resp, resp, sizeof(resp))))
+	{
+		std::cerr << "vocoder config response packet failed" << std::endl;
+		dump("Configuration response was:", &responsePacket, sizeof(responsePacket));
 		return true;
 	};
 #ifdef DEBUG
