@@ -107,7 +107,7 @@ bool CController::InitDevices()
 		// set each of the 3 vocoders to the current type
 		for (uint8_t channel=PKT_CHANNEL0; channel<=PKT_CHANNEL2; channel++)
 		{
-			if (a3003->ConfigureCodec(channel, type))
+			if (a3003->ConfigureVocoder(channel, type))
 				return true;
 		}
 

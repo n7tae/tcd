@@ -234,19 +234,26 @@ bool CDV3003::InitDV3003()
 	return false;
 }
 
-bool CDV3003::ConfigureCodec(uint8_t pkt_ch, Encoding type)
+bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 {
 	SDV3003_Packet controlPacket, responsePacket;
-	const uint8_t  dstar[13] { PKT_RATEP, 0x01U, 0x30U, 0x07U, 0x63U, 0x40U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x48U };
-	const uint8_t    dmr[13] { PKT_RATEP, 0x04U, 0x31U, 0x07U, 0x54U, 0x24U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x6FU, 0x48U };
-	const uint8_t    init[2] { PKT_INIT, 0x3U };
+	const uint8_t  dstar[] { PKT_RATEP, 0x01U, 0x30U, 0x07U, 0x63U, 0x40U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x48U };
+	const uint8_t    dmr[] { PKT_RATEP, 0x04U, 0x31U, 0x07U, 0x54U, 0x24U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x6FU, 0x48U };
+	const uint8_t   init[] { PKT_INIT, 0x3U };
 
 
 	controlPacket.start_byte = PKT_HEADER;
 	controlPacket.header.payload_length = htons(1 + sizeof(SDV3003_Packet::payload.codec));
 	controlPacket.header.packet_type = PKT_CONTROL;
 	controlPacket.field_id = pkt_ch;
-	memcpy(controlPacket.payload.codec.ratep, (type == Encoding::dstar) ? dstar : dmr, 13);
+	if (type == Encoding::dstar)
+	{
+		memcpy(controlPacket.payload.codec.ratep, dstar, 13);
+	}
+	else
+	{
+		memcpy(controlPacket.payload.codec.ratep, dmr, 13);
+	}
 	memcpy(controlPacket.payload.codec.init, init, 2);
 
 	// write packet

@@ -98,7 +98,7 @@ public:
 	~CDV3003();
 	bool OpenDevice(const std::string &device, int baudrate);
 	bool InitDV3003();
-	bool ConfigureCodec(uint8_t pkt_ch, Encoding type);
+	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
 	bool SendAudio(const uint8_t channel, const int16_t *audio) const;
 	bool SendData(const uint8_t channel, const uint8_t *data) const;
 	bool GetResponse(SDV3003_Packet &packet);
