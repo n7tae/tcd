@@ -350,7 +350,7 @@ bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
 	p.header.payload_length = htons(len);
 	p.header.packet_type = PKT_SPEECH;
 	p.field_id = channel + PKT_CHANNEL0;
-	p.payload.audio.speechd = 0x0U;
+	p.payload.audio.speechd = PKT_SPEECHD;
 	p.payload.audio.num_samples = 160U;
 	for (int i=0; i<160; i++)
 		p.payload.audio.samples[i] = htons(audio[i]);
@@ -372,9 +372,11 @@ bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
 	p.header.payload_length = htons(12);
 	p.header.packet_type = PKT_CHANNEL;
 	p.field_id = channel + PKT_CHANNEL0;
+	p.payload.ambe.chand = PKT_CHAND;
 	p.payload.ambe.num_bits = 72U;
-	p.payload.ambe.chand = 0x1U;
-	memcpy(p.payload.ambe.data, data, 9);
+	for (unsigned int i=0; i<9; i++)
+		p.payload.ambe.data[i] = data[8-i];
+	//memcpy(p.payload.ambe.data, data, 9);
 
 	// send data packet to DV3000
 	int size = packet_size(p);
