@@ -426,11 +426,10 @@ void CController::AppendWave(const std::shared_ptr<CTranscoderPacket> packet) co
 {
 	std::stringstream sstr;
 	sstr << std::hex << ntohs(packet->GetStreamId()) << ".raw";
-	std::ofstream pcmfile(sstr.str(), std::ofstream::binary);
+	std::ofstream pcmfile(sstr.str(), std::ofstream::app | std::ofstream::binary);
 	if (pcmfile.good())
 	{
-		for (unsigned int i=0; i<160; i++)
-			pcmfile << packet->GetAudio()[i];
+		pcmfile.write(reinterpret_cast<char *>(packet->GetAudio()), 320);
 
 		pcmfile.close();
 	}
