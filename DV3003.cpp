@@ -374,9 +374,7 @@ bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
 	p.field_id = channel + PKT_CHANNEL0;
 	p.payload.ambe.chand = PKT_CHAND;
 	p.payload.ambe.num_bits = 72U;
-	for (unsigned int i=0; i<9; i++)
-		p.payload.ambe.data[i] = data[8-i];
-	//memcpy(p.payload.ambe.data, data, 9);
+	memcpy(p.payload.ambe.data, data, 9);
 
 	// send data packet to DV3000
 	int size = packet_size(p);
