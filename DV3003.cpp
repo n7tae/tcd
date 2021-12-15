@@ -239,6 +239,9 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 	SDV3003_Packet controlPacket, responsePacket;
 	const uint8_t  dstar[] { PKT_RATEP, 0x01U, 0x30U, 0x07U, 0x63U, 0x40U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x48U };
 	const uint8_t    dmr[] { PKT_RATEP, 0x04U, 0x31U, 0x07U, 0x54U, 0x24U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x6FU, 0x48U };
+	const uint8_t  chfmt[] { PKT_CHANFMT, 0x0, 0x0 };
+	const uint8_t  spfmt[] { PKT_SPCHFMT, 0x0, 0x0 };
+	const uint8_t   gain[] { PKT_GAIN, 0x0, 0x0 };
 	const uint8_t   init[] { PKT_INIT, 0x3U };
 
 
@@ -254,6 +257,9 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 	{
 		memcpy(controlPacket.payload.codec.ratep, dmr, 13);
 	}
+	memcpy(controlPacket.payload.codec.chfmt, chfmt, 3);
+	memcpy(controlPacket.payload.codec.spfmt, spfmt, 3);
+	memcpy(controlPacket.payload.codec.gain, gain, 3);
 	memcpy(controlPacket.payload.codec.init, init, 2);
 
 	// write packet
@@ -269,14 +275,21 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 		return true;
 	}
 
-	if ((ntohs(responsePacket.header.payload_length) != 6) ||
+	if ((ntohs(responsePacket.header.payload_length) != 12) ||
 		(responsePacket.field_id != pkt_ch) ||
 		(responsePacket.payload.ctrl.data.resp[0] != 0x00) ||
 	    (responsePacket.payload.ctrl.data.resp[1] != PKT_RATEP) ||
 		(responsePacket.payload.ctrl.data.resp[2] != 0x00) ||
-	    (responsePacket.payload.ctrl.data.resp[3] != PKT_INIT) ||
-		(responsePacket.payload.ctrl.data.resp[4] != 0x00) ) {
+	    (responsePacket.payload.ctrl.data.resp[3] != PKT_CHANFMT) ||
+		(responsePacket.payload.ctrl.data.resp[4] != 0x00) ||
+	    (responsePacket.payload.ctrl.data.resp[5] != PKT_SPCHFMT) ||
+		(responsePacket.payload.ctrl.data.resp[6] != 0x00) ||
+	    (responsePacket.payload.ctrl.data.resp[7] != PKT_GAIN) ||
+		(responsePacket.payload.ctrl.data.resp[8] != 0x00) ||
+	    (responsePacket.payload.ctrl.data.resp[9] != PKT_INIT) ||
+		(responsePacket.payload.ctrl.data.resp[10] != 0x00) ) {
 		std::cerr << "codec config response packet failed" << std::endl;
+		dump("Configuration response:", &responsePacket, sizeof(responsePacket));
 		return true;
 	};
 #ifdef DEBUG

@@ -67,11 +67,14 @@ struct dv3003_packet {
 				char prodid[16];
 				uint8_t paritymode[3];
 				char version[48];
-				uint8_t resp[5];	// for the codec config response, RATEP and INIT
+				uint8_t resp[11];	// for the codec config response, RATEP, CHANFMT, SPCHFMT, GAIN and INIT
 			} data;
 		} ctrl;
 		struct {
 			uint8_t ratep[13];
+			uint8_t chfmt[3];
+			uint8_t spfmt[3];
+			uint8_t gain[3];
 			uint8_t init[2];
 		} codec;
 		struct {
