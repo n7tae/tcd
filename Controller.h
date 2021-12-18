@@ -22,6 +22,7 @@
 #include <memory>
 #include <atomic>
 #include <future>
+#include <mutex>
 #include <sys/select.h>
 
 #include "codec2.h"
@@ -39,22 +40,28 @@ public:
 	void Stop();
 
 protected:
-	unsigned int dmr_vocoder_count, current_dmr_vocoder, dstar_vocoder_count, current_dstar_vocoder;
+	unsigned int dmr_vocoder_count, current_dmr_vocoder, dstar_vocoder_count, current_dstar_vocoder, dmr_depth, dstar_depth;
 	std::atomic<bool> keep_running;
-	std::future<void> reflectorThread, ambeThread;
+	std::future<void> reflectorFuture, readambeFuture, feedambeFuture, c2Future;
 	std::vector<std::shared_ptr<CDV3003>> dmr_device, dstar_device;
 	std::map<char, int16_t[160]> audio_store;
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
 	CCodec2 c2_16{false};
 	CCodec2 c2_32{true};
+	CPacketQueue codec2_queue, dmr_queue, dstar_queue;
+	std::mutex dstar_mux, dmr_mux, c2_mux;
 
 	bool InitDevices();
 	void IncrementDMRVocoder(void);
 	void IncrementDStarVocoder(void);
 	// processing threads
-	void ReadReflector();
-	void ReadAmbeDevices();
+	void ReadReflectorThread();
+	void ReadAmbesThread();
+	void FeedAmbesThread();
+	void ProcessC2Thread();
+	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> pack);
+	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> pack);
 	void ReadDevice(std::shared_ptr<CDV3003> dv3003, EAmbeType type);
 	void AddFDSet(int &max, int newfd, fd_set *set) const;
 #ifdef DEBUG

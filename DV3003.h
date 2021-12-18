@@ -116,6 +116,7 @@ public:
 	std::string GetVersion() const;
 
 	CPacketQueue packet_queue[3];	// we need a queue for each vocoder
+	CPacketQueue device_queue;		// and a queue for input
 private:
 	const Encoding type;
 	int fd;

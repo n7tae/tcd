@@ -18,7 +18,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include <mutex>
 #include <queue>
 #include <memory>
 
@@ -32,39 +31,28 @@ public:
 	std::shared_ptr<CTranscoderPacket> pop()
 	{
 		std::shared_ptr<CTranscoderPacket> pack;
-		mutex.lock();
 		if (! queue.empty()) {
 			pack = queue.front();
 			queue.pop();
 		}
-		mutex.unlock();
-		return std::move(pack);
+		return pack;
 	}
 
 	bool empty()
 	{
-		mutex.lock();
-		bool rval = queue.empty();
-		mutex.unlock();
-		return rval;
+		return queue.empty();
 	}
 
 	void push(std::shared_ptr<CTranscoderPacket> packet)
 	{
-		mutex.lock();
 		queue.push(packet);
-		mutex.unlock();
 	}
 
 	std::size_t size()
 	{
-		mutex.lock();
-		auto s = queue.size();
-		mutex.unlock();
-		return s;
+		return queue.size();
 	}
 
 protected:
-	std::mutex mutex;
 	std::queue<std::shared_ptr<CTranscoderPacket>> queue;
 };
