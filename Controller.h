@@ -60,8 +60,9 @@ protected:
 	void ReadAmbesThread();
 	void FeedAmbesThread();
 	void ProcessC2Thread();
-	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> pack);
-	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> pack);
+	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);
+	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);
+	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet);
 	void ReadDevice(std::shared_ptr<CDV3003> dv3003, EAmbeType type);
 	void AddFDSet(int &max, int newfd, fd_set *set) const;
 #ifdef DEBUG

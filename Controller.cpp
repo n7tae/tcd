@@ -153,6 +153,8 @@ void CController::IncrementDStarVocoder()
 	current_dstar_vocoder = (current_dstar_vocoder + 1) % dstar_vocoder_count;
 }
 
+// Encapsulate the incoming STCPacket into a CTranscoderPacket and push it into the appropriate queue
+// based on packet's codec_in.
 void CController::ReadReflectorThread()
 {
 	while (keep_running)
@@ -187,6 +189,9 @@ void CController::ReadReflectorThread()
 	}
 }
 
+// This is only called when codec_in was dstar or dmr. Obviously, the incoming
+// ambe packet was already decoded to audio.
+// This might complete the packet. If so, send it back to the reflector
 void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 {
 	uint8_t m17data[8];
@@ -208,35 +213,29 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 			packet->SetM17Data(silence, EAudioSection::secondhalf);
 		}
 	}
-	// we've received the audio and we've calculated the m17 data, now we just need to
-	// calculate the other ambe data
-	if (packet->GetCodecIn() == ECodecType::dmr)
+	// we might be all done...
+	if (packet->AllCodecsAreSet())
 	{
-		dstar_mux.lock();
-		dstar_queue.push(packet);
-		dstar_mux.unlock();
-	}
-	else /* the dmr/dstar type is dstar */
-	{
-		dmr_mux.lock();
-		dmr_queue.push(packet);
-		dmr_mux.unlock();
+		SendToReflector(packet);
 	}
 }
 
+// The original incoming coded was M17, so we will calculate the audio and then
+// push the packet onto both the dstar and the dmr queue.
 void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 {
 	if (packet->IsSecond())
 	{
 		if (packet->GetCodecIn() == ECodecType::c2_1600)
 		{
-			//copy the audio from local storage
+			// we've already calculated the audio in the previous packet
+			// copy the audio from local audio store
 			memcpy(packet->GetAudio(), audio_store[packet->GetModule()], 320);
 		}
 		else /* codec_in is ECodecType::c2_3200 */
 		{
-			//decode the second 8 data bytes
-			//move the 160 audio samples to the packet
+			// decode the second 8 data bytes
+			// and put it in the packet
 			c2_32.codec2_decode(packet->GetAudio(), packet->GetM17Data()+8);
 		}
 	}
@@ -244,13 +243,15 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		if (packet->GetCodecIn() == ECodecType::c2_1600)
 		{
-			//c2_1600 encodes 40 ms of audio, 320 points, so...
-			//we need some temprary audio storage:
+			// c2_1600 encodes 40 ms of audio, 320 points, so...
+			// we need some temporary audio storage for decoding c2_1600:
 			int16_t tmp[320];
-			//decode it
+			// decode it into the temporary storage
 			c2_16.codec2_decode(tmp, packet->GetM17Data()); // 8 bytes input produces 320 audio points
-			//move the first and second half
+			// move the first and second half
+			// the first half is for the packet
 			memcpy(packet->GetAudio(), tmp, 320);
+			// and the second half goes into the audio store
 			memcpy(audio_store[packet->GetModule()], tmp+160, 320);
 		}
 		else /* codec_in is ECodecType::c2_3200 */
@@ -258,7 +259,7 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 			c2_32.codec2_decode(packet->GetAudio(), packet->GetM17Data());
 		}
 	}
-	// the only thing left is to encode the two ambe
+	// the only thing left is to encode the two ambe, so push the packet onto both AMBE queues
 	dstar_mux.lock();
 	dstar_queue.push(packet);
 	dstar_mux.unlock();
@@ -272,14 +273,16 @@ void CController::ProcessC2Thread()
 	while (keep_running)
 	{
 		c2_mux.lock();
-		auto c2_queue_is_empty = codec2_queue.empty();
+		auto c2_queue_is_empty = codec2_queue.empty();	// is there a packet avaiable
 		c2_mux.unlock();
 		if (c2_queue_is_empty)
 		{
+			// no packet available, sleep for a little while
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
 		else
 		{
+			// a packet is available, so get it
 			c2_mux.lock();
 			auto packet = codec2_queue.pop();
 			c2_mux.unlock();
@@ -287,10 +290,13 @@ void CController::ProcessC2Thread()
 			{
 				case ECodecType::c2_1600:
 				case ECodecType::c2_3200:
+					// this is an original M17 packet, so decode it to audio
+					// Codec2toAudio will send it on for AMBE processing
 					Codec2toAudio(packet);
 					break;
 				case ECodecType::dstar:
 				case ECodecType::dmr:
+					// codec_in was AMBE, so we need to calculate the the M17 data
 					AudiotoCodec2(packet);
 					break;
 			}
@@ -303,6 +309,8 @@ void CController::FeedAmbesThread()
 	while (keep_running)
 	{
 		bool did_nothing = true;
+
+		// If available, pop a packet from the dstar queue and send it for vocoding
 		dstar_mux.lock();
 		if ((! dstar_queue.empty()) && (dstar_depth < MAX_DEPTH))
 		{
@@ -321,6 +329,7 @@ void CController::FeedAmbesThread()
 		}
 		dstar_mux.unlock();
 
+		// If available, pop a packet from the dmr queue and send it for vocoding
 		dmr_mux.lock();
 		if ((! dmr_queue.empty()) && (dmr_depth < MAX_DEPTH))
 		{
@@ -339,6 +348,7 @@ void CController::FeedAmbesThread()
 		}
 		dmr_mux.unlock();
 
+		// both the dmr and dstar queue were empty, so sleep for a little while
 		if (did_nothing)
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 	}
@@ -351,7 +361,7 @@ void CController::AddFDSet(int &max, int newfd, fd_set *set) const
 	FD_SET(newfd, set);
 }
 
-// read transcoded (AMBE or audio) data from DVSI hardware
+// read vocoded (AMBE or audio) data from DVSI hardware
 void CController::ReadAmbesThread()
 {
 	while (keep_running)
@@ -399,9 +409,9 @@ void CController::ReadAmbesThread()
 }
 
 // Any audio packet recevied from the DVSI vocoders means that the original codec was AMBE (DStar or DMR).
-// These audio packets need to be encoded, by the complimentary AMBE vocoder _and_ M17.
-// Since code_in was AMBE, the audio will be encoded to c2_3200, and copied to the packet.
-// If we have read AMBE data from the vocoder, it needs to be put back into the packet.
+// A) These audio packets need to be encoded, by the complimentary AMBE vocoder _and_ M17.
+//    Since code_in was AMBE, the audio will also be encoded to c2_3200, and copied to the packet.
+// B) If we have read AMBE data from the vocoder, it needs to be put back into the packet.
 // Finally if the packet is complete, it can be sent back to the reflector.
 void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 {
@@ -455,7 +465,9 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 			packet->GetAudio()[i] = ntohs(devpacket.payload.audio.samples[i]);
 		// we need to encode the m17
 		// encode the audio to c2_3200 (all ambe input vocodes to ECodecType::c2_3200)
-		AudiotoCodec2(packet);
+		c2_mux.lock();
+		codec2_queue.push(packet);
+		c2_mux.unlock();
 	}
 	else /* the response is ambe data */
 	{
@@ -468,23 +480,27 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 		{
 			packet->SetDStarData(devpacket.payload.ambe.data);
 		}
-
 		// send it off, if it's done
 		if (packet->AllCodecsAreSet())
 		{
-			// open a socket to the reflector channel
-			CUnixDgramWriter socket;
-			std::string name(TC2REF);
-			name.append(1, packet->GetModule());
-			socket.SetUp(name.c_str());
-			// send the packet over the socket
-			socket.Send(packet->GetTCPacket());
-			// the socket will automatically close after sending
-#ifdef DEBUG
-			AppendWave(packet);
-#endif
+			SendToReflector(packet);
 		}
 	}
+}
+
+void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
+{
+	// open a socket to the reflector channel
+	CUnixDgramWriter socket;
+	std::string name(TC2REF);
+	name.append(1, packet->GetModule());
+	socket.SetUp(name.c_str());
+	// send the packet over the socket
+	socket.Send(packet->GetTCPacket());
+	// the socket will automatically close after sending
+#ifdef DEBUG
+	AppendWave(packet);
+#endif
 }
 
 #ifdef DEBUG
