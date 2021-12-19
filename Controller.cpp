@@ -320,8 +320,11 @@ void CController::FeedAmbesThread()
 			auto vocnum = current_dstar_vocoder % 3;
 			//push the packet onto the vocoder's queue
 			dstar_device[devnum]->packet_queue[vocnum].push(packet);
-			// send the audio to the current dstar vocoder
-			dstar_device[devnum]->SendAudio(vocnum, packet->GetAudio());
+			// send the correct thing to the current dstar vocoder
+			if (ECodecType::dstar == packet->GetCodecIn())
+				dstar_device[devnum]->SendData(vocnum, packet->GetDStarData());
+			else
+				dstar_device[devnum]->SendAudio(vocnum, packet->GetAudio());
 			dstar_depth++;
 			// increment the dstar vocoder index
 			IncrementDStarVocoder();
@@ -339,8 +342,11 @@ void CController::FeedAmbesThread()
 			auto vocnum = current_dmr_vocoder % 3;
 			// push the packet onto the dmr vocoder's queue
 			dmr_device[devnum]->packet_queue[vocnum].push(packet);
-			// send the audio to the corrent dmr vocoder
-			dmr_device[devnum]->SendAudio(vocnum, packet->GetAudio());
+			// send the correct thing to the corrent dmr vocoder
+			if (ECodecType::dmr == packet->GetCodecIn())
+				dmr_device[devnum]->SendData(vocnum, packet->GetDMRData());
+			else
+				dmr_device[devnum]->SendAudio(vocnum, packet->GetAudio());
 			dmr_depth++;
 			// increment the dmr vocoder index
 			IncrementDMRVocoder();
@@ -447,15 +453,15 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 	{
 		dstar_mux.lock();
 		packet = device->packet_queue[devpacket.field_id-PKT_CHANNEL0].pop();
-		dstar_depth--;
 		dstar_mux.unlock();
+		dstar_depth--;
 	}
 	else
 	{
 		dmr_mux.lock();
 		packet = device->packet_queue[devpacket.field_id-PKT_CHANNEL0].pop();
-		dmr_depth--;
 		dmr_mux.unlock();
+		dmr_depth--;
 	}
 
 	if (is_audio)
