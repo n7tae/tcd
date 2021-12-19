@@ -474,6 +474,19 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 		c2_mux.lock();
 		codec2_queue.push(packet);
 		c2_mux.unlock();
+		// ... AND we need to encode the audio to the OTHER ambe codec
+		if (type == EAmbeType::dstar)
+		{
+			dmr_mux.lock();
+			dmr_queue.push(packet);
+			dmr_mux.unlock();
+		}
+		else
+		{
+			dstar_mux.lock();
+			dstar_queue.push(packet);
+			dstar_mux.unlock();
+		}
 	}
 	else /* the response is ambe data */
 	{
