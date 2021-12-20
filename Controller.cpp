@@ -25,7 +25,7 @@
 #include "TranscoderPacket.h"
 #include "Controller.h"
 
-#define MAX_DEPTH 3
+#define MAX_DEPTH 2
 
 CController::CController() : dmr_vocoder_count(0), current_dmr_vocoder(0), dstar_vocoder_count(0), current_dstar_vocoder(0), dmr_depth(0), dstar_depth(0), keep_running(true)
 {
