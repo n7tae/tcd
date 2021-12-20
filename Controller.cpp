@@ -217,6 +217,12 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		SendToReflector(packet);
 	}
+#ifdef DEBUG
+	if (packet->IsSecond())
+	{
+		AppendM17(packet);
+	}
+#endif
 }
 
 // The original incoming coded was M17, so we will calculate the audio and then
@@ -272,19 +278,10 @@ void CController::ProcessC2Thread()
 	while (keep_running)
 	{
 		c2_mux.lock();
-		auto c2_queue_is_empty = codec2_queue.empty();	// is there a packet avaiable
+		auto packet = codec2_queue.pop();
 		c2_mux.unlock();
-		if (c2_queue_is_empty)
+		if (packet)
 		{
-			// no packet available, sleep for a little while
-			std::this_thread::sleep_for(std::chrono::milliseconds(5));
-		}
-		else
-		{
-			// a packet is available, so get it
-			c2_mux.lock();
-			auto packet = codec2_queue.pop();
-			c2_mux.unlock();
 			switch (packet->GetCodecIn())
 			{
 				case ECodecType::c2_1600:
@@ -300,6 +297,8 @@ void CController::ProcessC2Thread()
 					break;
 			}
 		}
+		else
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 	}
 }
 
@@ -420,10 +419,10 @@ void CController::ReadAmbesThread()
 // Finally if the packet is complete, it can be sent back to the reflector.
 void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 {
-	//save the dmr/dstar type
+	// save the dmr/dstar type
 	const char *device_type = (EAmbeType::dstar==type) ? "D-Star" : "DMR";
 
-	//read the response from the vocoder
+	// read the response from the vocoder
 	SDV3003_Packet devpacket;
 	if (device->GetResponse(devpacket))
 	{
@@ -535,6 +534,21 @@ void CController::AppendWave(const std::shared_ptr<CTranscoderPacket> packet) co
 	}
 	else
 		std::cerr << "could not open pcm file " << sstr.str();
+}
+
+void CController::AppendM17(const std::shared_ptr<CTranscoderPacket> packet) const
+{
+	std::stringstream sstr;
+	sstr << std::hex << ntohs(packet->GetStreamId()) << ".m17";
+	std::ofstream m17file(sstr.str(), std::ofstream::app | std::ofstream::binary);
+	if (m17file.good())
+	{
+		m17file.write(reinterpret_cast<const char *>(packet->GetM17Data()), 16);
+
+		m17file.close();
+	}
+	else
+		std::cerr << "could not open M17 data file " << sstr.str();
 }
 
 void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::string &title) const

@@ -287,7 +287,7 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 		return true;
 	};
 #ifdef DEBUG
-	std::cout << devicepath << " channel " << (unsigned int)pkt_ch << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
+	std::cout << devicepath << " channel " << (unsigned int)(pkt_ch - PKT_CHANNEL0) << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
 #endif
 	return false;
 }

@@ -68,6 +68,7 @@ protected:
 	void AddFDSet(int &max, int newfd, fd_set *set) const;
 #ifdef DEBUG
 	void AppendWave(const std::shared_ptr<CTranscoderPacket> packet) const;
+	void AppendM17(const std::shared_ptr<CTranscoderPacket> packet) const;
 	void Dump(const std::shared_ptr<CTranscoderPacket> packet, const std::string &title) const;
 #endif
 };
