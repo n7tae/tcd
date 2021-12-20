@@ -467,6 +467,10 @@ void CController::ReadDevice(std::shared_ptr<CDV3003> device, EAmbeType type)
 		//move the audio to the CTranscoderPacket
 		for (unsigned int i=0; i<160; i++)
 			packet->GetAudio()[i] = ntohs(devpacket.payload.audio.samples[i]);
+#ifdef DEBUG
+		if (EAmbeType::dstar == type)
+			AppendWave(packet);
+#endif
 		// we need to encode the m17
 		// encode the audio to c2_3200 (all ambe input vocodes to ECodecType::c2_3200)
 		c2_mux.lock();
@@ -516,7 +520,7 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	socket.Send(packet->GetTCPacket());
 	// the socket will automatically close after sending
 #ifdef DEBUG
-	AppendWave(packet);
+	//AppendWave(packet);
 #endif
 }
 
