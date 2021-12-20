@@ -45,6 +45,7 @@ protected:
 	std::future<void> reflectorFuture, readambeFuture, feedambeFuture, c2Future;
 	std::vector<std::shared_ptr<CDV3003>> dmr_device, dstar_device;
 	std::map<char, int16_t[160]> audio_store;
+	std::map<char, uint8_t[8]> data_store;
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
 	CCodec2 c2_16{false};

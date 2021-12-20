@@ -35,7 +35,7 @@ CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), d
 		break;
 	case ECodecType::c2_1600:
 	case ECodecType::c2_3200:
-		SetM17Data(tcp.m17, EAudioSection::all);
+		SetM17Data(tcp.m17);
 		break;
 	default:
 		std::cerr << "Trying to allocate CTranscoderPacket with an unknown codec type!" << std::endl;
@@ -68,13 +68,10 @@ const STCPacket *CTranscoderPacket::GetTCPacket() const
 	return &tcpacket;
 }
 
-void CTranscoderPacket::SetM17Data(const uint8_t *data, EAudioSection section)
+void CTranscoderPacket::SetM17Data(const uint8_t *data)
 {
-	const unsigned int offset = (EAudioSection::secondhalf == section) ? 8 : 0;
-	const unsigned int size = (EAudioSection::all == section) ? 16 : 8;
-	memcpy(tcpacket.m17+offset, data, size);
-	if (EAudioSection::firsthalf != section)
-		m17_set = true;
+	memcpy(tcpacket.m17, data, 16);
+	m17_set = true;
 }
 
 void CTranscoderPacket::SetDStarData(const uint8_t *dstar)

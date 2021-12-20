@@ -194,25 +194,24 @@ void CController::ReadReflectorThread()
 // This might complete the packet. If so, send it back to the reflector
 void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 {
-	uint8_t m17data[8];
-	c2_32.codec2_encode(m17data, packet->GetAudio());
+	// the second half is silent in case this is frame is last.
+	uint8_t m17data[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x01, 0x43, 0x09, 0xe4, 0x9c, 0x08, 0x21 };
 	if (packet->IsSecond())
 	{
-		//move the c2_3200 data to the second half of the M17 packet
-		packet->SetM17Data(m17data, EAudioSection::secondhalf);
+		// get the first half from the store
+		memcpy(m17data, data_store[packet->GetModule()], 8);
+		// and then calculate the second half
+		c2_32.codec2_encode(m17data+8, packet->GetAudio());
 	}
 	else /* the packet is first */
 	{
-		// move it into the packet
-		packet->SetM17Data(m17data, EAudioSection::firsthalf);
-		if (packet->IsLast())
-		{
-			// we have an odd number of packets, so we have to finish up the m17 packet
-			const uint8_t silence[] = {0x00, 0x01, 0x43, 0x09, 0xe4, 0x9c, 0x08, 0x21 };
-			//put codec silence in the second half of the codec
-			packet->SetM17Data(silence, EAudioSection::secondhalf);
-		}
+		// calculate the first half...
+		c2_32.codec2_encode(m17data, packet->GetAudio());
+		// and then copy the calculated data to the data_store
+		memcpy(m17data, data_store[packet->GetModule()], 8);
 	}
+	// put the M17 data into the packet
+	packet->SetM17Data(m17data);
 	// we might be all done...
 	if (packet->AllCodecsAreSet())
 	{
