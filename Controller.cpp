@@ -208,7 +208,7 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 		// calculate the first half...
 		c2_32.codec2_encode(m17data, packet->GetAudio());
 		// and then copy the calculated data to the data_store
-		memcpy(m17data, data_store[packet->GetModule()], 8);
+		memcpy(data_store[packet->GetModule()], m17data, 8);
 	}
 	// put the M17 data into the packet
 	packet->SetM17Data(m17data);
