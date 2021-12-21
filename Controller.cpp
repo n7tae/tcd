@@ -126,7 +126,7 @@ void CController::ReadReflectorThread()
 				c2_mux.unlock();
 				break;
 			default:
-				Dump(packet, "ERROR: Got a reflector packet with unknown Codec:");
+				Dump(packet, "ERROR: Received a reflector packet with unknown Codec:");
 				break;
 			}
 		}
@@ -159,14 +159,10 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 	// we might be all done...
 	if (packet->AllCodecsAreSet())
 	{
+		send_mux.lock();
 		SendToReflector(packet);
+		send_mux.unlock();
 	}
-#ifdef DEBUG
-	if (packet->IsSecond())
-	{
-		AppendM17(packet);
-	}
-#endif
 }
 
 // The original incoming coded was M17, so we will calculate the audio and then

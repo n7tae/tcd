@@ -451,9 +451,17 @@ void CDV3003::ReadDevice()
 				continue;
 			}
 			if (Encoding::dstar == type)
+			{
+				Controller.dstar_mux.lock();
 				Controller.RouteDstPacket(packet);
+				Controller.dstar_mux.unlock();
+			}
 			else
+			{
+				Controller.dmr_mux.lock();
 				Controller.RouteDmrPacket(packet);
+				Controller.dmr_mux.unlock();
+			}
 		}
 	}
 }

@@ -33,6 +33,8 @@ enum class EAmbeType { dstar, dmr };
 class CController
 {
 public:
+	std::mutex dstar_mux, dmr_mux;
+
 	CController();
 	bool Start();
 	void Stop();
