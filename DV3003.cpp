@@ -30,11 +30,15 @@
 #include <iostream>
 #include <iomanip>
 #include <cerrno>
+#include <thread>
 
 #include "DV3003.h"
 #include "configure.h"
+#include "Controller.h"
 
-CDV3003::CDV3003(Encoding t) : type(t), fd(-1)
+extern CController Controller;
+
+CDV3003::CDV3003(Encoding t) : type(t), fd(-1), ch_depth(0), sp_depth(0), current_vocoder(0)
 {
 }
 
@@ -43,17 +47,25 @@ CDV3003::~CDV3003()
 	CloseDevice();
 }
 
+void CDV3003::CloseDevice()
+{
+	keep_running = false;
+	if (fd >= 0) {
+		close(fd);
+		fd = -1;
+	}
+	if (feedFuture.valid())
+		feedFuture.get();
+	if (readFuture.valid())
+		readFuture.get();
+}
+
 bool CDV3003::checkResponse(SDV3003_Packet &p, uint8_t response) const
 {
 	if(p.start_byte != PKT_HEADER || p.header.packet_type != PKT_CONTROL || p.field_id != response)
 		return true;
 
 	return false;
-}
-
-bool CDV3003::IsOpen() const
-{
-	return fd >= 0;
 }
 
 std::string CDV3003::GetDevicePath() const
@@ -231,6 +243,9 @@ bool CDV3003::InitDV3003()
 	}
 	version.assign(responsePacket.payload.ctrl.data.version);
 	std::cout << "Found " << productid << " version " << version << " at " << devicepath << std::endl;
+
+	feedFuture = std::async(std::launch::async, &CDV3003::FeedDevice, this);
+	readFuture = std::async(std::launch::async, &CDV3003::ReadDevice, this);
 	return false;
 }
 
@@ -292,14 +307,6 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 	return false;
 }
 
-void CDV3003::CloseDevice()
-{
-	if (fd >= 0) {
-		close(fd);
-		fd = -1;
-	}
-}
-
 bool CDV3003::GetResponse(SDV3003_Packet &packet)
 {
 	ssize_t bytesRead;
@@ -353,6 +360,109 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
     }
 
     return false;
+}
+
+void CDV3003::FeedDevice()
+{
+	keep_running = true;
+	while (keep_running)
+	{
+		in_mux.lock();
+		auto packet = inq.pop();
+		in_mux.unlock();
+		if (packet)
+		{
+			bool device_is_full = true;
+			bool has_ambe = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
+
+			while (keep_running && device_is_full)	// wait until there is room
+			{
+				if (has_ambe)
+				{
+					// we need to decode ambe to audio
+					if (ch_depth < 2)
+						device_is_full = false;
+				}
+				else
+				{
+					// we need to encode audio to ambe
+					if (sp_depth < 2)
+						device_is_full = false;
+				}
+				if (device_is_full)
+					std::this_thread::sleep_for(std::chrono::milliseconds(2));
+			}
+
+			if (keep_running)
+			{
+				voc_mux[current_vocoder].lock();
+				vocq->push(packet);
+				voc_mux[current_vocoder].unlock();
+				if (has_ambe)
+				{
+					SendAudio(current_vocoder, packet->GetAudio());
+					sp_depth++;
+				}
+				else
+				{
+					SendData(current_vocoder, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
+					ch_depth++;
+				}
+				if(++current_vocoder > 2)
+					current_vocoder = 0;
+			}
+		}
+		else // no packet is in the input queue
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+		}
+	}
+}
+
+void CDV3003::ReadDevice()
+{
+	while (keep_running)
+	{
+		dv3003_packet p;
+		if (GetResponse(p))
+		{
+			unsigned int channel = p.field_id - PKT_CHANNEL0;
+			voc_mux[channel].lock();
+			auto packet = vocq[channel].pop();
+			voc_mux[channel].unlock();
+			if (PKT_CHANNEL == p.header.packet_type)
+			{
+				sp_depth--;
+				if (Encoding::dstar == type)
+					packet->SetDStarData(p.payload.ambe.data);
+				else
+					packet->SetDMRData(p.payload.ambe.data);
+			}
+			else if (PKT_SPEECH == p.header.packet_type)
+			{
+				ch_depth--;
+				auto pPCM = packet->GetAudio();
+				for (unsigned int i=0; i<160; i++)
+					pPCM[i] = ntohs(p.payload.audio.samples[i]);
+			}
+			else
+			{
+				dump("ReadDevice() ERROR: Read an unexpected device packet:", &p, packet_size(p));
+				continue;
+			}
+			if (Encoding::dstar == type)
+				Controller.RouteDstPacket(packet);
+			else
+				Controller.RouteDmrPacket(packet);
+		}
+	}
+}
+
+void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
+{
+	in_mux.lock();
+	inq.push(packet);
+	in_mux.unlock();
 }
 
 bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const

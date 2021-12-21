@@ -19,6 +19,9 @@
 #include <netinet/in.h>
 #include <string>
 #include <sstream>
+#include <future>
+#include <mutex>
+#include <atomic>
 
 #include "PacketQueue.h"
 
@@ -104,23 +107,31 @@ public:
 	bool OpenDevice(const std::string &device, int baudrate);
 	bool InitDV3003();
 	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
-	bool SendAudio(const uint8_t channel, const int16_t *audio) const;
-	bool SendData(const uint8_t channel, const uint8_t *data) const;
-	bool GetResponse(SDV3003_Packet &packet);
-	int GetFd() const { return fd; }
 	void CloseDevice();
-	bool IsOpen() const;
-	void dump(const char *title, void *data, int length) const;
 	std::string GetDevicePath() const;
 	std::string GetProductID() const;
 	std::string GetVersion() const;
+	void AddPacket(const std::shared_ptr<CTranscoderPacket> packet);
 
-	CPacketQueue packet_queue[3];	// we need a queue for each vocoder
-	CPacketQueue device_queue;		// and a queue for input
 private:
 	const Encoding type;
 	int fd;
+	std::atomic<unsigned int> ch_depth, sp_depth;
+	uint8_t current_vocoder;
+	std::atomic<bool> keep_running;
+	CPacketQueue vocq[3];	// we need a queue for each vocoder
+	std::mutex voc_mux[3];
+	CPacketQueue inq;		// and input queue
+	std::mutex in_mux;
+	std::future<void> feedFuture, readFuture;
 	std::string devicepath, productid, version;
+
+	void FeedDevice();
+	void ReadDevice();
 	bool SetBaudRate(int baudrate);
 	bool checkResponse(SDV3003_Packet &responsePacket, uint8_t response) const;
+	bool SendAudio(const uint8_t channel, const int16_t *audio) const;
+	bool SendData(const uint8_t channel, const uint8_t *data) const;
+	bool GetResponse(SDV3003_Packet &packet);
+	void dump(const char *title, void *data, int length) const;
 };

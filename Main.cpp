@@ -19,17 +19,19 @@
 
 #include "Controller.h"
 
+// the global controller object
+CController Controller;
+
 int main()
 {
-	CController controller;
-	if (controller.Start())
+	if (Controller.Start())
 		return EXIT_FAILURE;
 
-	std::cout << "Hybrid Transcoder Version #211220 Successfully started" << std::endl;
+	std::cout << "Hybrid Transcoder Version #211221 Successfully started" << std::endl;
 
 	pause();
 
-	controller.Stop();
+	Controller.Stop();
 
 	return EXIT_SUCCESS;
 }

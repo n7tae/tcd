@@ -16,9 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include <vector>
 #include <map>
-#include <set>
 #include <memory>
 #include <atomic>
 #include <future>
@@ -38,34 +36,31 @@ public:
 	CController();
 	bool Start();
 	void Stop();
+	void RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet);
+	void RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet);
 
 protected:
-	unsigned int dmr_vocoder_count, current_dmr_vocoder, dstar_vocoder_count, current_dstar_vocoder, dmr_depth, dstar_depth;
 	std::atomic<bool> keep_running;
-	std::future<void> reflectorFuture, readambeFuture, feedambeFuture, c2Future;
-	std::vector<std::shared_ptr<CDV3003>> dmr_device, dstar_device;
+	std::future<void> reflectorFuture, c2Future;
 	std::map<char, int16_t[160]> audio_store;
 	std::map<char, uint8_t[8]> data_store;
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
 	CCodec2 c2_16{false};
 	CCodec2 c2_32{true};
-	CPacketQueue codec2_queue, dmr_queue, dstar_queue;
-	std::mutex dstar_mux, dmr_mux, c2_mux;
+	CDV3003 dstar_device{Encoding::dstar};
+	CDV3003 dmr_device{Encoding::dmr};
+
+	CPacketQueue codec2_queue;
+	std::mutex c2_mux, send_mux;
 
 	bool InitDevices();
-	void IncrementDMRVocoder(void);
-	void IncrementDStarVocoder(void);
 	// processing threads
 	void ReadReflectorThread();
-	void ReadAmbesThread();
-	void FeedAmbesThread();
 	void ProcessC2Thread();
-	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);
 	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet);
-	void ReadDevice(std::shared_ptr<CDV3003> dv3003, EAmbeType type);
-	void AddFDSet(int &max, int newfd, fd_set *set) const;
+	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);
 #ifdef DEBUG
 	void AppendWave(const std::shared_ptr<CTranscoderPacket> packet) const;
 	void AppendM17(const std::shared_ptr<CTranscoderPacket> packet) const;
