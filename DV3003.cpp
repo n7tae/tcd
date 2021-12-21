@@ -22,11 +22,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <sys/select.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
 #include <cstring>
-#include <cassert>
 #include <iostream>
 #include <iomanip>
 #include <cerrno>
@@ -435,6 +435,24 @@ void CDV3003::ReadDevice()
 {
 	while (keep_running)
 	{
+		fd_set FdSet;
+		FD_ZERO(&FdSet);
+		FD_SET(fd, &FdSet);
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 400000;
+		auto rval = select(fd+1, &FdSet, 0, 0, &tv);	// wait for 0.4 sec for something to read
+
+		if (rval < 0)
+		{
+			std::cerr << "ERROR: select() on " << devicepath << ": " << strerror(errno) << std::endl;
+			keep_running = false;
+			exit(1);
+		}
+
+		if (0 == rval)
+			continue;	// nothing to read, try again
+
 		dv3003_packet p;
 		if (GetResponse(p))
 		{
@@ -532,9 +550,6 @@ bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
 
 void CDV3003::dump(const char *title, void *pointer, int length) const
 {
-	assert(title != NULL);
-	assert(pointer != NULL);
-
 	const uint8_t *data = (const uint8_t *)pointer;
 
 	std::cout << title << std::endl;

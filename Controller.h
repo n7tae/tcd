@@ -21,7 +21,6 @@
 #include <atomic>
 #include <future>
 #include <mutex>
-#include <sys/select.h>
 
 #include "codec2.h"
 #include "DV3003.h"
