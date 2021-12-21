@@ -147,6 +147,14 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 	std::cout << "Opened " << devicepath << " using fd " << fd << std::endl;
 #endif
 
+	if (InitDV3003())
+		return true;
+
+	for (uint8_t ch=PKT_CHANNEL0; ch<=PKT_CHANNEL2; ch++)
+	{
+		if (ConfigureVocoder(ch, type))
+			return true;
+	}
 	return false;
 }
 
@@ -244,9 +252,13 @@ bool CDV3003::InitDV3003()
 	version.assign(responsePacket.payload.ctrl.data.version);
 	std::cout << "Found " << productid << " version " << version << " at " << devicepath << std::endl;
 
+	return false;
+}
+
+void CDV3003::Start()
+{
 	feedFuture = std::async(std::launch::async, &CDV3003::FeedDevice, this);
 	readFuture = std::async(std::launch::async, &CDV3003::ReadDevice, this);
-	return false;
 }
 
 bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)

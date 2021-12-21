@@ -81,19 +81,14 @@ bool CController::InitDevices()
 		return true;
 	}
 
-	// now initialize each device
-
+	//initialize each device
 	if (dstar_device.OpenDevice(deviceset[0], 921600) || dmr_device.OpenDevice(deviceset[1], 921600))
 		return true;
 
-	if (dstar_device.InitDV3003() || dmr_device.InitDV3003())
-		return true;
+	// and start them up!
+	dstar_device.Start();
+	dmr_device.Start();
 
-	for (uint8_t ch=PKT_CHANNEL0; ch<=PKT_CHANNEL2; ch++)
-	{
-		if (dstar_device.ConfigureVocoder(ch, Encoding::dstar) || dmr_device.ConfigureVocoder(ch, Encoding::dmr))
-			return true;
-	}
 	return false;
 }
 
