@@ -383,6 +383,10 @@ void CDV3003::FeedDevice()
 		in_mux.lock();
 		auto packet = inq.pop();
 		in_mux.unlock();
+		#ifdef DEBUG
+		if (packet->IsLast())
+			Controller.Dump(packet, "FeedDevice got a packet from inq:");
+		#endif
 		if (packet)
 		{
 			bool device_is_ready = false;
@@ -467,6 +471,9 @@ void CDV3003::ReadDevice()
 		dv3003_packet p;
 		if (GetResponse(p))
 		{
+			#ifdef DEBUG
+			dump("Got Response:", &p, packet_size(p));
+			#endif
 			unsigned int channel = p.field_id - PKT_CHANNEL0;
 			voc_mux[channel].lock();
 			auto packet = vocq[channel].pop();
