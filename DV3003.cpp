@@ -387,28 +387,29 @@ void CDV3003::FeedDevice()
 			if (packet->IsLast())
 				Controller.Dump(packet, "FeedDevice got a packet from inq:");
 			#endif
-			bool device_is_ready = false;
+
 			const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
 
-			while (keep_running && (! device_is_ready))	// wait until there is room
+			while (keep_running)	// wait until there is room
 			{
 				if (needs_audio)
 				{
 					// we need to decode ambe to audio
 					if (ch_depth < 2)
-						device_is_ready = true;
+						break;
 				}
 				else
 				{
 					// we need to encode audio to ambe
 					if (sp_depth < 2)
-						device_is_ready = true;
+						break;
 				}
-				if (! device_is_ready)
-					std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				std::cout << "depth: ch=" << ch_depth << " sp=" << sp_depth << std::endl;
+				std::cout.flush();
 			}
 
-			if (keep_running && device_is_ready)
+			if (keep_running)
 			{
 				// save the packet in the vocoder's queue while the vocoder does its magic
 				vocq[current_vocoder].push(packet);
