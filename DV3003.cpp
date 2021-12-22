@@ -414,16 +414,16 @@ void CDV3003::FeedDevice()
 
 				if (needs_audio)
 				{
+					SendData(current_vocoder, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
+					ch_depth++;
+				}
+				else
+				{
 					SendAudio(current_vocoder, packet->GetAudio());
 					sp_depth++;
 #ifdef DEBUG
 					std::cout << "Sent audio to " << devicepath << std::endl;
 #endif
-				}
-				else
-				{
-					SendData(current_vocoder, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
-					ch_depth++;
 				}
 				if(++current_vocoder > 2)
 					current_vocoder = 0;
