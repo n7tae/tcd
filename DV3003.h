@@ -118,9 +118,7 @@ private:
 	std::atomic<unsigned int> ch_depth, sp_depth;
 	std::atomic<bool> keep_running;
 	CPacketQueue vocq[3];	// we need a queue for each vocoder
-	std::mutex voc_mux[3];
 	CPacketQueue inq;		// and input queue
-	std::mutex in_mux;
 	std::future<void> feedFuture, readFuture;
 	std::string devicepath, productid, version;
 

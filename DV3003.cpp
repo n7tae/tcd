@@ -437,15 +437,6 @@ void CDV3003::FeedDevice()
 		}
 		else // no packet is in the input queue
 		{
-			#ifdef DEBUG
-			static unsigned int maxsize = 0;
-			unsigned int s = inq.size();
-			if (s > maxsize)
-			{
-				std::cout << "inq size=" << s << std::endl;
-				maxsize = s;
-			}
-			#endif
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
 	}
@@ -530,6 +521,15 @@ void CDV3003::ReadDevice()
 void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
 	inq.push(packet);
+	#ifdef DEBUG
+	static unsigned int maxsize = 0;
+	unsigned int s = inq.size();
+	if (s > maxsize)
+	{
+		std::cout << "inq size=" << s << std::endl;
+		maxsize = s;
+	}
+	#endif
 }
 
 bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
