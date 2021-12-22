@@ -352,7 +352,7 @@ void CController::AppendM17(const std::shared_ptr<CTranscoderPacket> packet) con
 void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::string &title) const
 {
 	std::stringstream line;
-	line << title << ": Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase;
+	line << title << " Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase;
 
 	ECodecType in = p->GetCodecIn();
 	if (p->DStarIsSet())

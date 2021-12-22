@@ -417,15 +417,19 @@ void CDV3003::FeedDevice()
 				{
 					SendData(current_vocoder, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
 					ch_depth++;
+					#ifdef DEBUG
+					if (packet->IsLast())
+						Controller.Dump(packet, "Queued for decoding:");
+					#endif
 				}
 				else
 				{
 					SendAudio(current_vocoder, packet->GetAudio());
 					sp_depth++;
-#ifdef DEBUG
+					#ifdef DEBUG
 					if (packet->IsLast())
-						std::cout << "Sent audio to " << devicepath << std::endl;
-#endif
+						Controller.Dump(packet, "Queued for encoding:");
+					#endif
 				}
 				if(++current_vocoder > 2)
 					current_vocoder = 0;
@@ -474,6 +478,11 @@ void CDV3003::ReadDevice()
 					packet->SetDStarData(p.payload.ambe.data);
 				else
 					packet->SetDMRData(p.payload.ambe.data);
+
+				#ifdef DEBUG
+				if (packet->IsLast())
+					Controller.Dump(packet, "Data from device is now set:");
+				#endif
 			}
 			else if (PKT_SPEECH == p.header.packet_type)
 			{
@@ -481,6 +490,11 @@ void CDV3003::ReadDevice()
 				auto pPCM = packet->GetAudio();
 				for (unsigned int i=0; i<160; i++)
 					pPCM[i] = ntohs(p.payload.audio.samples[i]);
+
+				#ifdef DEBUG
+				if (packet->IsLast())
+					Controller.Dump(packet, "Audio from device is now set:");
+				#endif
 			}
 			else
 			{

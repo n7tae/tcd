@@ -39,6 +39,7 @@ public:
 	void Stop();
 	void RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet);
 	void RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet);
+	void Dump(const std::shared_ptr<CTranscoderPacket> packet, const std::string &title) const;
 
 protected:
 	std::atomic<bool> keep_running;
@@ -65,6 +66,5 @@ protected:
 #ifdef DEBUG
 	void AppendWave(const std::shared_ptr<CTranscoderPacket> packet) const;
 	void AppendM17(const std::shared_ptr<CTranscoderPacket> packet) const;
-	void Dump(const std::shared_ptr<CTranscoderPacket> packet, const std::string &title) const;
 #endif
 };
