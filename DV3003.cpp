@@ -385,11 +385,11 @@ void CDV3003::FeedDevice()
 		if (packet)
 		{
 			bool device_is_ready = false;
-			bool has_ambe = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
+			const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
 
 			while (keep_running && (! device_is_ready))	// wait until there is room
 			{
-				if (has_ambe)
+				if (needs_audio)
 				{
 					// we need to decode ambe to audio
 					if (ch_depth < 2)
@@ -407,10 +407,12 @@ void CDV3003::FeedDevice()
 
 			if (keep_running && device_is_ready)
 			{
+				// save the packet in the vocoder's queue while the vocoder does its magic
 				voc_mux[current_vocoder].lock();
-				vocq->push(packet);
+				vocq[current_vocoder].push(packet);
 				voc_mux[current_vocoder].unlock();
-				if (has_ambe)
+
+				if (needs_audio)
 				{
 					SendAudio(current_vocoder, packet->GetAudio());
 					sp_depth++;
@@ -422,9 +424,6 @@ void CDV3003::FeedDevice()
 				{
 					SendData(current_vocoder, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
 					ch_depth++;
-#ifdef DEBUG
-					std::cout << "Sent AMBE to " << devicepath << std::endl;
-#endif
 				}
 				if(++current_vocoder > 2)
 					current_vocoder = 0;
