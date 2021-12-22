@@ -384,28 +384,28 @@ void CDV3003::FeedDevice()
 		in_mux.unlock();
 		if (packet)
 		{
-			bool device_is_full = true;
+			bool device_is_ready = false;
 			bool has_ambe = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
 
-			while (keep_running && device_is_full)	// wait until there is room
+			while (keep_running && (! device_is_ready))	// wait until there is room
 			{
 				if (has_ambe)
 				{
 					// we need to decode ambe to audio
 					if (ch_depth < 2)
-						device_is_full = false;
+						device_is_ready = true;
 				}
 				else
 				{
 					// we need to encode audio to ambe
 					if (sp_depth < 2)
-						device_is_full = false;
+						device_is_ready = true;
 				}
-				if (device_is_full)
+				if (! device_is_ready)
 					std::this_thread::sleep_for(std::chrono::milliseconds(2));
 			}
 
-			if (keep_running)
+			if (keep_running && device_is_ready)
 			{
 				voc_mux[current_vocoder].lock();
 				vocq->push(packet);
@@ -414,11 +414,17 @@ void CDV3003::FeedDevice()
 				{
 					SendAudio(current_vocoder, packet->GetAudio());
 					sp_depth++;
+#ifdef DEBUG
+					std::cout << "Sent audio to " << devicepath << std::endl;
+#endif
 				}
 				else
 				{
 					SendData(current_vocoder, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
 					ch_depth++;
+#ifdef DEBUG
+					std::cout << "Sent AMBE to " << devicepath << std::endl;
+#endif
 				}
 				if(++current_vocoder > 2)
 					current_vocoder = 0;
@@ -440,8 +446,8 @@ void CDV3003::ReadDevice()
 		FD_SET(fd, &FdSet);
 		struct timeval tv;
 		tv.tv_sec = 0;
-		tv.tv_usec = 400000;
-		auto rval = select(fd+1, &FdSet, 0, 0, &tv);	// wait for 0.4 sec for something to read
+		tv.tv_usec = 400000;	// wait for 0.4 sec for something to read
+		auto rval = select(fd+1, &FdSet, 0, 0, &tv);
 
 		if (rval < 0)
 		{
@@ -480,7 +486,7 @@ void CDV3003::ReadDevice()
 				dump("ReadDevice() ERROR: Read an unexpected device packet:", &p, packet_size(p));
 				continue;
 			}
-			if (Encoding::dstar == type)
+			if (Encoding::dstar == type)	// is this a DMR or a DStar device?
 			{
 				Controller.dstar_mux.lock();
 				Controller.RouteDstPacket(packet);

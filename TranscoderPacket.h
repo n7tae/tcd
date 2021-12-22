@@ -18,7 +18,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <cstring>
-#include <stdint.h>
+#include <cstdint>
+#include <atomic>
 
 #include "TCPacketDef.h"
 
@@ -58,5 +59,5 @@ public:
 private:
 	STCPacket tcpacket;
 	int16_t audio[160];
-	bool dstar_set, dmr_set, m17_set;
+	std::atomic<bool> dstar_set, dmr_set, m17_set;
 };

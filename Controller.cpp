@@ -109,10 +109,14 @@ void CController::ReadReflectorThread()
 			switch (packet->GetCodecIn())
 			{
 			case ECodecType::dstar:
+				add_dst_mux.lock();
 				dstar_device.AddPacket(packet);
+				add_dst_mux.unlock();
 				break;
 			case ECodecType::dmr:
+				add_dmr_mux.lock();
 				dmr_device.AddPacket(packet);
+				add_dmr_mux.unlock();
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
@@ -200,8 +204,12 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 		}
 	}
 	// the only thing left is to encode the two ambe, so push the packet onto both AMBE queues
+	add_dst_mux.lock();
 	dstar_device.AddPacket(packet);
+	add_dst_mux.unlock();
+	add_dmr_mux.lock();
 	dmr_device.AddPacket(packet);
+	add_dmr_mux.unlock();
 }
 
 void CController::ProcessC2Thread()
@@ -243,15 +251,20 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	// send the packet over the socket
 	socket.Send(packet->GetTCPacket());
 	// the socket will automatically close after sending
-#ifdef DEBUG
+//#ifdef DEBUG
 	//AppendWave(packet);
-#endif
+//#endif
 }
 
 void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 {
 	if (ECodecType::dstar == packet->GetCodecIn())
+	{
+		// codec_in is dstar, the audio has just completed, so now calc the DMR
+		add_dmr_mux.lock();
 		dmr_device.AddPacket(packet);
+		add_dmr_mux.unlock();
+	}
 	else if (packet->AllCodecsAreSet())
 	{
 		send_mux.lock();
@@ -263,7 +276,11 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 {
 	if (ECodecType::dmr == packet->GetCodecIn())
+	{
+		add_dst_mux.lock();
 		dstar_device.AddPacket(packet);
+		add_dst_mux.unlock();
+	}
 	else if (packet->AllCodecsAreSet())
 	{
 		send_mux.lock();
