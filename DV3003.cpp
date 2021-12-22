@@ -383,12 +383,12 @@ void CDV3003::FeedDevice()
 		in_mux.lock();
 		auto packet = inq.pop();
 		in_mux.unlock();
-		#ifdef DEBUG
-		if (packet->IsLast())
-			Controller.Dump(packet, "FeedDevice got a packet from inq:");
-		#endif
 		if (packet)
 		{
+			#ifdef DEBUG
+			if (packet->IsLast())
+				Controller.Dump(packet, "FeedDevice got a packet from inq:");
+			#endif
 			bool device_is_ready = false;
 			const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
 
