@@ -257,6 +257,7 @@ bool CDV3003::InitDV3003()
 
 void CDV3003::Start()
 {
+	keep_running = true;
 	feedFuture = std::async(std::launch::async, &CDV3003::FeedDevice, this);
 	readFuture = std::async(std::launch::async, &CDV3003::ReadDevice, this);
 }
@@ -376,7 +377,6 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 
 void CDV3003::FeedDevice()
 {
-	keep_running = true;
 	uint8_t current_vocoder = 0;
 	while (keep_running)
 	{
