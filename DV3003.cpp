@@ -38,7 +38,7 @@
 
 extern CController Controller;
 
-CDV3003::CDV3003(Encoding t) : type(t), fd(-1), ch_depth(0), sp_depth(0), current_vocoder(0)
+CDV3003::CDV3003(Encoding t) : type(t), fd(-1), ch_depth(0), sp_depth(0)
 {
 }
 
@@ -138,14 +138,14 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 
 	if (SetBaudRate(baudrate))
 		return true;
-#ifdef DEBUG
+	#ifdef DEBUG
 	std::cout << ttyname << " baudrate it set to " << baudrate << std::endl;
-#endif
+	#endif
 
 	devicepath.assign(ttyname);
-#ifdef DEBUG
+	#ifdef DEBUG
 	std::cout << "Opened " << devicepath << " using fd " << fd << std::endl;
-#endif
+	#endif
 
 	if (InitDV3003())
 		return true;
@@ -183,9 +183,9 @@ bool CDV3003::InitDV3003()
 	   std::cerr << "InitDV3003: invalid response to reset" << std::endl;
 	   return true;
 	}
-#ifdef DEBUG
+	#ifdef DEBUG
 	std::cout << "Successfully reset " << devicepath << std::endl;
-#endif
+	#endif
 
 	// ********** turn off parity *********
 	ctrlPacket.header.payload_length = htons(4);
@@ -211,9 +211,9 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
-#ifdef DEBUG
+	#ifdef DEBUG
 	std::cout << "Successfully disabled parity on " << devicepath << std::endl;
-#endif
+	#endif
 
 	// ********* Product ID and Version *************
 	ctrlPacket.header.payload_length = htons(1);
@@ -313,9 +313,9 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 		dump("Configuration response was:", &responsePacket, sizeof(responsePacket));
 		return true;
 	};
-#ifdef DEBUG
+	#ifdef DEBUG
 	std::cout << devicepath << " channel " << (unsigned int)(pkt_ch - PKT_CHANNEL0) << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
-#endif
+	#endif
 	return false;
 }
 
@@ -377,6 +377,7 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 void CDV3003::FeedDevice()
 {
 	keep_running = true;
+	uint8_t current_vocoder = 0;
 	while (keep_running)
 	{
 		in_mux.lock();
@@ -422,7 +423,8 @@ void CDV3003::FeedDevice()
 					SendAudio(current_vocoder, packet->GetAudio());
 					sp_depth++;
 #ifdef DEBUG
-					std::cout << "Sent audio to " << devicepath << std::endl;
+					if (packet->IsLast())
+						std::cout << "Sent audio to " << devicepath << std::endl;
 #endif
 				}
 				if(++current_vocoder > 2)

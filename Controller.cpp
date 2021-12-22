@@ -109,17 +109,29 @@ void CController::ReadReflectorThread()
 			switch (packet->GetCodecIn())
 			{
 			case ECodecType::dstar:
+				#ifdef DEBUG
+				if (packet->IsLast())
+					Dump(packet, "Ref packet to dstar device:");
+				#endif
 				add_dst_mux.lock();
 				dstar_device.AddPacket(packet);
 				add_dst_mux.unlock();
 				break;
 			case ECodecType::dmr:
+				#ifdef DEBUG
+				if (packet->IsLast())
+					Dump(packet, "Ref packet to dmr device:");
+				#endif
 				add_dmr_mux.lock();
 				dmr_device.AddPacket(packet);
 				add_dmr_mux.unlock();
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
+				#ifdef DEBUG
+				if (packet->IsLast())
+					Dump(packet, "Ref packet to Codec2 vocoder:");
+				#endif
 				c2_mux.lock();
 				codec2_queue.push(packet);
 				c2_mux.unlock();
@@ -155,6 +167,10 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 	}
 	// put the M17 data into the packet
 	packet->SetM17Data(m17data);
+	#ifdef DEBUG
+	if (packet->IsLast())
+		Dump(packet, "Encoded M17:");
+	#endif
 	// we might be all done...
 	if (packet->AllCodecsAreSet())
 	{
@@ -210,6 +226,10 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 	add_dmr_mux.lock();
 	dmr_device.AddPacket(packet);
 	add_dmr_mux.unlock();
+	#ifdef DEBUG
+	if (packet->IsLast())
+		Dump(packet, "Sent to both dstar and dmr device:");
+	#endif
 }
 
 void CController::ProcessC2Thread()
@@ -251,9 +271,10 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	// send the packet over the socket
 	socket.Send(packet->GetTCPacket());
 	// the socket will automatically close after sending
-//#ifdef DEBUG
-	//AppendWave(packet);
-//#endif
+	#ifdef DEBUG
+	if (packet->IsLast())
+		Dump(packet, "Sent to reflector:");
+	#endif
 }
 
 void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
@@ -264,6 +285,10 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 		add_dmr_mux.lock();
 		dmr_device.AddPacket(packet);
 		add_dmr_mux.unlock();
+		#ifdef DEBUG
+		if (packet->IsLast())
+			Dump(packet, "Routed to dmr:");
+		#endif
 	}
 	else if (packet->AllCodecsAreSet())
 	{
@@ -280,6 +305,10 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 		add_dst_mux.lock();
 		dstar_device.AddPacket(packet);
 		add_dst_mux.unlock();
+		#ifdef DEBUG
+		if (packet->IsLast())
+			Dump(packet, "Routed to dstar:");
+		#endif
 	}
 	else if (packet->AllCodecsAreSet())
 	{
@@ -322,54 +351,29 @@ void CController::AppendM17(const std::shared_ptr<CTranscoderPacket> packet) con
 
 void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::string &title) const
 {
-	std::string codec;
-	switch (p->GetCodecIn())
-	{
-	case ECodecType::dstar:
-		codec.assign("DStar");
-		break;
-	case ECodecType::dmr:
-		codec.assign("DMR");
-		break;
-	case ECodecType::c2_1600:
-		codec.assign("C2-1600");
-		break;
-	case ECodecType::c2_3200:
-		codec.assign("C2-3200");
-		break;
-	default:
-		codec.assign("NONE");
-		break;
-	}
-	std::cout << title << ": Module='" << p->GetModule() << "' Stream ID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase << " Codec in is " << codec;
+	std::stringstream line;
+	line << title << ": Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase;
+
+	ECodecType in = p->GetCodecIn();
+	if (p->DStarIsSet())
+		line << " D-Star";
+	if (ECodecType::dstar == in)
+		line << '*';
+	if (p->DMRIsSet())
+		line << " DMR";
+	if (ECodecType::dmr == in)
+		line << '*';
+	if (p->M17IsSet())
+		line << " M17";
+	if (ECodecType::c2_1600 == in)
+		line << "**";
+	else if (ECodecType::c2_3200 == in)
+		line << '*';
 	if (p->IsSecond())
-		std::cout << " IsSecond";
+		line << " IsSecond";
 	if (p->IsLast())
-		std::cout << " IsLast";
-	std::cout << std::endl;
+		line << " IsLast";
 
-	// if (p->DStarIsSet())
-	// {
-	// 	std::cout << "DStar data: ";
-	// 	for (unsigned int i=0; i<9; i++)
-	// 		std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDStarData()+i));
-	// 	std::cout << std::endl;
-	// }
-	// if (p->DMRIsSet())
-	// {
-	// 	std::cout << "DMR   Data: ";
-	// 	for (unsigned int i=0; i<9; i++)
-	// 		std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetDMRData()+i));
-	// 	std::cout << std::endl;
-	//  }
-	//  if (p->M17IsSet())
-	//  {
-	// 	std::cout << "M17   Data: ";
-	// 	for (unsigned int i=0; i<16; i++)
-	// 		std::cout << std::setw(2) << std::setfill('0') << unsigned(*(p->GetM17Data()+i));
-	// 	std::cout << std::endl;
-	// }
-
-	std::cout << std::dec;
+	std::cout << line.str() << std::dec << std::endl;
 }
 #endif

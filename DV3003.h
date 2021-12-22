@@ -116,7 +116,6 @@ private:
 	const Encoding type;
 	int fd;
 	std::atomic<unsigned int> ch_depth, sp_depth;
-	uint8_t current_vocoder;
 	std::atomic<bool> keep_running;
 	CPacketQueue vocq[3];	// we need a queue for each vocoder
 	std::mutex voc_mux[3];
