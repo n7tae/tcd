@@ -380,9 +380,7 @@ void CDV3003::FeedDevice()
 	uint8_t current_vocoder = 0;
 	while (keep_running)
 	{
-		in_mux.lock();
 		auto packet = inq.pop();
-		in_mux.unlock();
 		if (packet)
 		{
 			#ifdef DEBUG
@@ -413,9 +411,7 @@ void CDV3003::FeedDevice()
 			if (keep_running && device_is_ready)
 			{
 				// save the packet in the vocoder's queue while the vocoder does its magic
-				voc_mux[current_vocoder].lock();
 				vocq[current_vocoder].push(packet);
-				voc_mux[current_vocoder].unlock();
 
 				if (needs_audio)
 				{
@@ -441,6 +437,15 @@ void CDV3003::FeedDevice()
 		}
 		else // no packet is in the input queue
 		{
+			#ifdef DEBUG
+			static unsigned int maxsize = 0;
+			unsigned int s = inq.size();
+			if (s > maxsize)
+			{
+				std::cout << "inq size=" << s << std::endl;
+				maxsize = s;
+			}
+			#endif
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
 	}
@@ -475,9 +480,7 @@ void CDV3003::ReadDevice()
 			dump("Got Response:", &p, packet_size(p));
 			#endif
 			unsigned int channel = p.field_id - PKT_CHANNEL0;
-			voc_mux[channel].lock();
 			auto packet = vocq[channel].pop();
-			voc_mux[channel].unlock();
 			if (PKT_CHANNEL == p.header.packet_type)
 			{
 				sp_depth--;
@@ -526,9 +529,7 @@ void CDV3003::ReadDevice()
 
 void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
-	in_mux.lock();
 	inq.push(packet);
-	in_mux.unlock();
 }
 
 bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
