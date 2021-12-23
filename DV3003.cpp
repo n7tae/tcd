@@ -138,14 +138,14 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 
 	if (SetBaudRate(baudrate))
 		return true;
-	#ifdef DEBUG
+#ifdef DEBUG
 	std::cout << ttyname << " baudrate it set to " << baudrate << std::endl;
-	#endif
+#endif
 
 	devicepath.assign(ttyname);
-	#ifdef DEBUG
+#ifdef DEBUG
 	std::cout << "Opened " << devicepath << " using fd " << fd << std::endl;
-	#endif
+#endif
 
 	if (InitDV3003())
 		return true;
@@ -183,9 +183,9 @@ bool CDV3003::InitDV3003()
 	   std::cerr << "InitDV3003: invalid response to reset" << std::endl;
 	   return true;
 	}
-	#ifdef DEBUG
+#ifdef DEBUG
 	std::cout << "Successfully reset " << devicepath << std::endl;
-	#endif
+#endif
 
 	// ********** turn off parity *********
 	ctrlPacket.header.payload_length = htons(4);
@@ -211,9 +211,9 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
-	#ifdef DEBUG
+#ifdef DEBUG
 	std::cout << "Successfully disabled parity on " << devicepath << std::endl;
-	#endif
+#endif
 
 	// ********* Product ID and Version *************
 	ctrlPacket.header.payload_length = htons(1);
@@ -314,9 +314,9 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 		dump("Configuration response was:", &responsePacket, sizeof(responsePacket));
 		return true;
 	};
-	#ifdef DEBUG
+#ifdef DEBUG
 	std::cout << devicepath << " channel " << (unsigned int)(pkt_ch - PKT_CHANNEL0) << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
-	#endif
+#endif
 	return false;
 }
 
@@ -383,11 +383,6 @@ void CDV3003::FeedDevice()
 		auto packet = inq.pop();
 		if (packet)
 		{
-			#ifdef DEBUG
-			if (packet->IsLast())
-				Controller.Dump(packet, "FeedDevice got a packet from inq:");
-			#endif
-
 			const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
 
 			while (keep_running)	// wait until there is room
@@ -416,19 +411,11 @@ void CDV3003::FeedDevice()
 				{
 					SendData(current_vocoder, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
 					ch_depth++;
-					#ifdef DEBUG
-					if (packet->IsLast())
-						Controller.Dump(packet, "Queued for decoding:");
-					#endif
 				}
 				else
 				{
 					SendAudio(current_vocoder, packet->GetAudio());
 					sp_depth++;
-					#ifdef DEBUG
-					if (packet->IsLast())
-						Controller.Dump(packet, "Queued for encoding:");
-					#endif
 				}
 				if(++current_vocoder > 2)
 					current_vocoder = 0;
@@ -476,10 +463,6 @@ void CDV3003::ReadDevice()
 				else
 					packet->SetDMRData(p.payload.ambe.data);
 
-				#ifdef DEBUG
-				if (packet->IsLast())
-					Controller.Dump(packet, "Data from device is now set:");
-				#endif
 			}
 			else if (PKT_SPEECH == p.header.packet_type)
 			{
@@ -488,10 +471,6 @@ void CDV3003::ReadDevice()
 				for (unsigned int i=0; i<160; i++)
 					pPCM[i] = ntohs(p.payload.audio.samples[i]);
 
-				#ifdef DEBUG
-				if (packet->IsLast())
-					Controller.Dump(packet, "Audio from device is now set:");
-				#endif
 			}
 			else
 			{
@@ -517,7 +496,7 @@ void CDV3003::ReadDevice()
 void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
 	inq.push(packet);
-	#ifdef DEBUG
+#ifdef DEBUG
 	static unsigned int maxsize = 0;
 	unsigned int s = inq.size();
 	if (s > maxsize)
@@ -525,7 +504,7 @@ void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 		std::cout << "inq size=" << s << std::endl;
 		maxsize = s;
 	}
-	#endif
+#endif
 }
 
 bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const

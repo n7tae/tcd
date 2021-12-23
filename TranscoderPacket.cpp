@@ -35,7 +35,7 @@ CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), d
 		break;
 	case ECodecType::c2_1600:
 	case ECodecType::c2_3200:
-		SetM17Data(tcp.m17);
+		SetM17Data(tcp.m17, true);
 		break;
 	default:
 		std::cerr << "Trying to allocate CTranscoderPacket with an unknown codec type!" << std::endl;
@@ -68,10 +68,10 @@ const STCPacket *CTranscoderPacket::GetTCPacket() const
 	return &tcpacket;
 }
 
-void CTranscoderPacket::SetM17Data(const uint8_t *data)
+void CTranscoderPacket::SetM17Data(const uint8_t *data, bool is_set)
 {
 	memcpy(tcpacket.m17, data, 16);
-	m17_set = true;
+	m17_set = is_set;
 }
 
 void CTranscoderPacket::SetDStarData(const uint8_t *dstar)

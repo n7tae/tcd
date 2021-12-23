@@ -109,29 +109,17 @@ void CController::ReadReflectorThread()
 			switch (packet->GetCodecIn())
 			{
 			case ECodecType::dstar:
-				#ifdef DEBUG
-				if (packet->IsLast())
-					Dump(packet, "Ref packet to dstar device:");
-				#endif
 				add_dst_mux.lock();
 				dstar_device.AddPacket(packet);
 				add_dst_mux.unlock();
 				break;
 			case ECodecType::dmr:
-				#ifdef DEBUG
-				if (packet->IsLast())
-					Dump(packet, "Ref packet to dmr device:");
-				#endif
 				add_dmr_mux.lock();
 				dmr_device.AddPacket(packet);
 				add_dmr_mux.unlock();
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
-				#ifdef DEBUG
-				if (packet->IsLast())
-					Dump(packet, "Ref packet to Codec2 vocoder:");
-				#endif
 				c2_mux.lock();
 				codec2_queue.push(packet);
 				c2_mux.unlock();
@@ -157,6 +145,7 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 		memcpy(m17data, data_store[packet->GetModule()], 8);
 		// and then calculate the second half
 		c2_32.codec2_encode(m17data+8, packet->GetAudio());
+		packet->SetM17Data(m17data, true);
 	}
 	else /* the packet is first */
 	{
@@ -164,13 +153,9 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 		c2_32.codec2_encode(m17data, packet->GetAudio());
 		// and then copy the calculated data to the data_store
 		memcpy(data_store[packet->GetModule()], m17data, 8);
+		// set the m17_is_set flag if this is the last packet
+		packet->SetM17Data(m17data, packet->IsLast());
 	}
-	// put the M17 data into the packet
-	packet->SetM17Data(m17data);
-	#ifdef DEBUG
-	if (packet->IsLast())
-		Dump(packet, "Encoded M17:");
-	#endif
 	// we might be all done...
 	if (packet->AllCodecsAreSet())
 	{
@@ -226,10 +211,6 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 	add_dmr_mux.lock();
 	dmr_device.AddPacket(packet);
 	add_dmr_mux.unlock();
-	#ifdef DEBUG
-	if (packet->IsLast())
-		Dump(packet, "Sent to both dstar and dmr device:");
-	#endif
 }
 
 void CController::ProcessC2Thread()
@@ -271,10 +252,6 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	// send the packet over the socket
 	socket.Send(packet->GetTCPacket());
 	// the socket will automatically close after sending
-	#ifdef DEBUG
-	if (packet->IsLast())
-		Dump(packet, "Sent to reflector:");
-	#endif
 }
 
 void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
@@ -288,10 +265,6 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 		add_dmr_mux.lock();
 		dmr_device.AddPacket(packet);
 		add_dmr_mux.unlock();
-		#ifdef DEBUG
-		if (packet->IsLast())
-			Dump(packet, "DStar audio routed to codec2 and dmr:");
-		#endif
 	}
 	else if (packet->AllCodecsAreSet())
 	{
@@ -311,16 +284,15 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 		add_dst_mux.lock();
 		dstar_device.AddPacket(packet);
 		add_dst_mux.unlock();
-		#ifdef DEBUG
-		if (packet->IsLast())
-			Dump(packet, "DMR audio routed to dstar:");
-		#endif
 	}
 	else if (packet->AllCodecsAreSet())
 	{
 		send_mux.lock();
 		SendToReflector(packet);
 		send_mux.unlock();
+#ifdef DEBUG
+		AppendWave(packet);
+#endif
 	}
 }
 

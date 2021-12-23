@@ -38,7 +38,7 @@ public:
 	const uint8_t *GetM17Data() const;
 	void SetDStarData(const uint8_t *dstar);
 	void SetDMRData(const uint8_t *dmr);
-	void SetM17Data(const uint8_t *m17);
+	void SetM17Data(const uint8_t *m17, bool is_set);
 
 	// audio
 	int16_t *GetAudio();
