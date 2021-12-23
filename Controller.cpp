@@ -281,13 +281,16 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 {
 	if (ECodecType::dstar == packet->GetCodecIn())
 	{
-		// codec_in is dstar, the audio has just completed, so now calc the DMR
+		// codec_in is dstar, the audio has just completed, so now calc the M17 and DMR
+		c2_mux.lock();
+		codec2_queue.push(packet);
+		c2_mux.unlock();
 		add_dmr_mux.lock();
 		dmr_device.AddPacket(packet);
 		add_dmr_mux.unlock();
 		#ifdef DEBUG
 		if (packet->IsLast())
-			Dump(packet, "Routed to dmr:");
+			Dump(packet, "DStar audio routed to codec2 and dmr:");
 		#endif
 	}
 	else if (packet->AllCodecsAreSet())
@@ -302,12 +305,15 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 {
 	if (ECodecType::dmr == packet->GetCodecIn())
 	{
+		c2_mux.lock();
+		codec2_queue.push(packet);
+		c2_mux.unlock();
 		add_dst_mux.lock();
 		dstar_device.AddPacket(packet);
 		add_dst_mux.unlock();
 		#ifdef DEBUG
 		if (packet->IsLast())
-			Dump(packet, "Routed to dstar:");
+			Dump(packet, "DMR audio routed to dstar:");
 		#endif
 	}
 	else if (packet->AllCodecsAreSet())

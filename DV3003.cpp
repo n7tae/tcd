@@ -405,8 +405,6 @@ void CDV3003::FeedDevice()
 						break;
 				}
 				std::this_thread::sleep_for(std::chrono::milliseconds(5));
-				std::cout << "depth: ch=" << ch_depth << " sp=" << sp_depth << std::endl;
-				std::cout.flush();
 			}
 
 			if (keep_running)
