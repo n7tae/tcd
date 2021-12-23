@@ -468,9 +468,6 @@ void CDV3003::ReadDevice()
 		dv3003_packet p;
 		if (! GetResponse(p))
 		{
-			#ifdef DEBUG
-			dump("Got Response:", &p, packet_size(p));
-			#endif
 			unsigned int channel = p.field_id - PKT_CHANNEL0;
 			auto packet = vocq[channel].pop();
 			if (PKT_CHANNEL == p.header.packet_type)
