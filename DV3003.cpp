@@ -466,7 +466,7 @@ void CDV3003::ReadDevice()
 			continue;	// nothing to read, try again
 
 		dv3003_packet p;
-		if (GetResponse(p))
+		if (! GetResponse(p))
 		{
 			#ifdef DEBUG
 			dump("Got Response:", &p, packet_size(p));
