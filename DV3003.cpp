@@ -414,11 +414,11 @@ void CDV3003::FeedDevice()
 				}
 				else
 				{
-					SendAudio(current_vocoder, packet->GetAudio());
+					SendAudio(current_vocoder, packet->GetAudioSamples());
 					sp_depth++;
 				}
-				if(++current_vocoder > 2)
-					current_vocoder = 0;
+				// if(++current_vocoder > 2)
+				// 	current_vocoder = 0;
 			}
 		}
 		else // no packet is in the input queue
@@ -457,6 +457,8 @@ void CDV3003::ReadDevice()
 			auto packet = vocq[channel].pop();
 			if (PKT_CHANNEL == p.header.packet_type)
 			{
+				if (12!=ntohs(p.header.payload_length) || 1!=p.payload.ambe.chand || 72!=p.payload.ambe.num_bits)
+					dump("Improper ambe packet:", &p, packet_size(p));
 				sp_depth--;
 				if (Encoding::dstar == type)
 					packet->SetDStarData(p.payload.ambe.data);
@@ -466,11 +468,10 @@ void CDV3003::ReadDevice()
 			}
 			else if (PKT_SPEECH == p.header.packet_type)
 			{
+				if (323!=ntohs(p.header.payload_length) || 0!=p.payload.audio.speechd || 160!=p.payload.audio.num_samples)
+					dump("Improper audio packet:", &p, packet_size(p));
 				ch_depth--;
-				auto pPCM = packet->GetAudio();
-				for (unsigned int i=0; i<160; i++)
-					pPCM[i] = ntohs(p.payload.audio.samples[i]);
-
+				packet->SetAudioSamples(p.payload.audio.samples, true);
 			}
 			else
 			{

@@ -38,14 +38,17 @@ public:
 	const uint8_t *GetM17Data() const;
 	void SetDStarData(const uint8_t *dstar);
 	void SetDMRData(const uint8_t *dmr);
-	void SetM17Data(const uint8_t *m17, bool is_set);
+	void SetM17Data(const uint8_t *m17);
+	void SetAudioSamples(const int16_t *samples, bool swap);
 
 	// audio
-	int16_t *GetAudio();
+	const int16_t *GetAudioSamples() const;
 
 	// state of packet
 	ECodecType GetCodecIn() const;
 	uint16_t GetStreamId() const;
+	uint32_t GetSequence() const;
+	double GetTimeMS() const;
 	bool IsLast() const;
 	bool IsSecond() const;
 	bool DStarIsSet() const;

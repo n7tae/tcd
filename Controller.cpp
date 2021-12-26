@@ -112,17 +112,29 @@ void CController::ReadReflectorThread()
 				add_dst_mux.lock();
 				dstar_device.AddPacket(packet);
 				add_dst_mux.unlock();
+#ifdef DEBUG
+				if (0 == packet->GetSequence())
+					Dump(packet, "DStar from reflect to decode:");
+#endif
 				break;
 			case ECodecType::dmr:
 				add_dmr_mux.lock();
 				dmr_device.AddPacket(packet);
 				add_dmr_mux.unlock();
+#ifdef DEBUG
+				if (0 == packet->GetSequence())
+					Dump(packet, "DMR from reflect to decode:");
+#endif
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
 				c2_mux.lock();
 				codec2_queue.push(packet);
 				c2_mux.unlock();
+#ifdef DEBUG
+				if (0 == packet->GetSequence())
+					Dump(packet, "M17 from reflect to decode:");
+#endif
 				break;
 			default:
 				Dump(packet, "ERROR: Received a reflector packet with unknown Codec:");
@@ -144,17 +156,17 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 		// get the first half from the store
 		memcpy(m17data, data_store[packet->GetModule()], 8);
 		// and then calculate the second half
-		c2_32.codec2_encode(m17data+8, packet->GetAudio());
-		packet->SetM17Data(m17data, true);
+		c2_32.codec2_encode(m17data+8, packet->GetAudioSamples());
+		packet->SetM17Data(m17data);
 	}
 	else /* the packet is first */
 	{
 		// calculate the first half...
-		c2_32.codec2_encode(m17data, packet->GetAudio());
+		c2_32.codec2_encode(m17data, packet->GetAudioSamples());
 		// and then copy the calculated data to the data_store
 		memcpy(data_store[packet->GetModule()], m17data, 8);
 		// set the m17_is_set flag if this is the last packet
-		packet->SetM17Data(m17data, packet->IsLast());
+		packet->SetM17Data(m17data);
 	}
 	// we might be all done...
 	if (packet->AllCodecsAreSet())
@@ -175,13 +187,15 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 		{
 			// we've already calculated the audio in the previous packet
 			// copy the audio from local audio store
-			memcpy(packet->GetAudio(), audio_store[packet->GetModule()], 320);
+			packet->SetAudioSamples(audio_store[packet->GetModule()], false);
 		}
 		else /* codec_in is ECodecType::c2_3200 */
 		{
+			int16_t tmp[160];
 			// decode the second 8 data bytes
 			// and put it in the packet
-			c2_32.codec2_decode(packet->GetAudio(), packet->GetM17Data()+8);
+			c2_32.codec2_decode(tmp, packet->GetM17Data()+8);
+			packet->SetAudioSamples(tmp, false);
 		}
 	}
 	else /* it's a "first packet" */
@@ -195,13 +209,15 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 			c2_16.codec2_decode(tmp, packet->GetM17Data()); // 8 bytes input produces 320 audio points
 			// move the first and second half
 			// the first half is for the packet
-			memcpy(packet->GetAudio(), tmp, 320);
+			packet->SetAudioSamples(tmp, false);
 			// and the second half goes into the audio store
-			memcpy(audio_store[packet->GetModule()], tmp+160, 320);
+			memcpy(audio_store[packet->GetModule()], &(tmp[160]), 320);
 		}
 		else /* codec_in is ECodecType::c2_3200 */
 		{
-			c2_32.codec2_decode(packet->GetAudio(), packet->GetM17Data());
+			int16_t tmp[160];
+			c2_32.codec2_decode(tmp, packet->GetM17Data());
+			packet->SetAudioSamples(tmp, false);
 		}
 	}
 	// the only thing left is to encode the two ambe, so push the packet onto both AMBE queues
@@ -252,6 +268,10 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	// send the packet over the socket
 	socket.Send(packet->GetTCPacket());
 	// the socket will automatically close after sending
+#ifdef DEBUG
+	if (0 == packet->GetSequence())
+		Dump(packet, "Complete:");
+#endif
 }
 
 void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
@@ -304,7 +324,7 @@ void CController::AppendWave(const std::shared_ptr<CTranscoderPacket> packet) co
 	std::ofstream pcmfile(sstr.str(), std::ofstream::app | std::ofstream::binary);
 	if (pcmfile.good())
 	{
-		pcmfile.write(reinterpret_cast<char *>(packet->GetAudio()), 320);
+		pcmfile.write(reinterpret_cast<const char *>(packet->GetAudioSamples()), 320);
 
 		pcmfile.close();
 	}
@@ -330,11 +350,11 @@ void CController::AppendM17(const std::shared_ptr<CTranscoderPacket> packet) con
 void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::string &title) const
 {
 	std::stringstream line;
-	line << title << " Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase;
+	line << title << " Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase << " ET:" << std::setprecision(3) << p->GetTimeMS();
 
 	ECodecType in = p->GetCodecIn();
 	if (p->DStarIsSet())
-		line << " D-Star";
+		line << " DStar";
 	if (ECodecType::dstar == in)
 		line << '*';
 	if (p->DMRIsSet())

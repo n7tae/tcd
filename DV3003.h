@@ -54,7 +54,7 @@
 #define PKT_SPCHFMT             0x16
 #define PKT_GAIN                0x4B
 
-#define packet_size(a) int(1 + sizeof((a).header) + ntohs((a).header.payload_length))
+#define packet_size(a) int(4 + ntohs((a).header.payload_length))
 
 #pragma pack(push, 1)
 struct dv3003_packet {

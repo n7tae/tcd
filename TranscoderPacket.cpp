@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <arpa/inet.h>
 #include <iostream>
 
 #include "TranscoderPacket.h"
@@ -22,9 +23,9 @@ CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), d
 {
 	tcpacket.module = tcp.module;
 	tcpacket.is_last = tcp.is_last;
-	tcpacket.is_second = tcp.is_second;
 	tcpacket.streamid = tcp.streamid;
 	tcpacket.codec_in = tcp.codec_in;
+	tcpacket.sequence = tcp.sequence;
 	switch (tcp.codec_in)
 	{
 	case ECodecType::dstar:
@@ -35,7 +36,7 @@ CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), d
 		break;
 	case ECodecType::c2_1600:
 	case ECodecType::c2_3200:
-		SetM17Data(tcp.m17, true);
+		SetM17Data(tcp.m17);
 		break;
 	default:
 		std::cerr << "Trying to allocate CTranscoderPacket with an unknown codec type!" << std::endl;
@@ -68,10 +69,10 @@ const STCPacket *CTranscoderPacket::GetTCPacket() const
 	return &tcpacket;
 }
 
-void CTranscoderPacket::SetM17Data(const uint8_t *data, bool is_set)
+void CTranscoderPacket::SetM17Data(const uint8_t *data)
 {
 	memcpy(tcpacket.m17, data, 16);
-	m17_set = is_set;
+	m17_set = true;
 }
 
 void CTranscoderPacket::SetDStarData(const uint8_t *dstar)
@@ -86,7 +87,13 @@ void CTranscoderPacket::SetDMRData(const uint8_t *dmr)
 	dmr_set = true;
 }
 
-int16_t *CTranscoderPacket::GetAudio()
+void CTranscoderPacket::SetAudioSamples(const int16_t *sample, bool swap)
+{
+	for (unsigned int i=0; i<160; i++)
+		audio[i] = swap ? ntohs(sample[i]) : sample[i];
+}
+
+const int16_t *CTranscoderPacket::GetAudioSamples() const
 {
 	return audio;
 }
@@ -101,6 +108,16 @@ uint16_t CTranscoderPacket::GetStreamId() const
 	return tcpacket.streamid;
 }
 
+uint32_t CTranscoderPacket::GetSequence() const
+{
+	return tcpacket.sequence;
+}
+
+double CTranscoderPacket::GetTimeMS() const
+{
+	return 1000.0 * tcpacket.rt_timer.time();
+}
+
 bool CTranscoderPacket::IsLast() const
 {
 	return tcpacket.is_last;
@@ -108,7 +125,7 @@ bool CTranscoderPacket::IsLast() const
 
 bool CTranscoderPacket::IsSecond() const
 {
-	return tcpacket.is_second;
+	return (1 == tcpacket.sequence % 2);
 }
 
 bool CTranscoderPacket::DStarIsSet() const
