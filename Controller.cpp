@@ -306,6 +306,9 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	socket.Send(packet->GetTCPacket());
 	// the socket will automatically close after sending
 #ifdef DEBUG
+	AppendWave(packet);
+	if (packet->IsSecond())
+		AppendM17(packet);
 	if (0 == packet->GetSequence())
 		Dump(packet, "Complete:");
 #endif
@@ -347,9 +350,6 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 		send_mux.lock();
 		SendToReflector(packet);
 		send_mux.unlock();
-#ifdef DEBUG
-		AppendWave(packet);
-#endif
 	}
 }
 
