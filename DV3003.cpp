@@ -377,7 +377,7 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 
 void CDV3003::FeedDevice()
 {
-	uint8_t current_vocoder = 0;
+	const std::string modules(TRANSCODED_MODULES);
 	while (keep_running)
 	{
 		auto packet = inq.pop();
@@ -404,21 +404,20 @@ void CDV3003::FeedDevice()
 
 			if (keep_running)
 			{
+				auto index = modules.find(packet->GetModule());
 				// save the packet in the vocoder's queue while the vocoder does its magic
-				vocq[current_vocoder].push(packet);
+				vocq[index].push(packet);
 
 				if (needs_audio)
 				{
-					SendData(current_vocoder, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
+					SendData(index, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
 					ch_depth++;
 				}
 				else
 				{
-					SendAudio(current_vocoder, packet->GetAudioSamples());
+					SendAudio(index, packet->GetAudioSamples());
 					sp_depth++;
 				}
-				// if(++current_vocoder > 2)
-				// 	current_vocoder = 0;
 			}
 		}
 		else // no packet is in the input queue

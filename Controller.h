@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <atomic>
 #include <future>
@@ -44,12 +44,11 @@ public:
 protected:
 	std::atomic<bool> keep_running;
 	std::future<void> reflectorFuture, c2Future;
-	std::map<char, int16_t[160]> audio_store;
-	std::map<char, uint8_t[8]> data_store;
+	std::unordered_map<char, int16_t[160]> audio_store;
+	std::unordered_map<char, uint8_t[8]> data_store;
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
-	CCodec2 c2_16{false};
-	CCodec2 c2_32{true};
+	std::unordered_map<char, std::unique_ptr<CCodec2>> c2_16, c2_32;
 	CDV3003 dstar_device{Encoding::dstar};
 	CDV3003 dmr_device{Encoding::dmr};
 
@@ -60,6 +59,7 @@ protected:
 	// processing threads
 	void ReadReflectorThread();
 	void ProcessC2Thread();
+	bool CheckTCModules() const;
 	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet);
 	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);

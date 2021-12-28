@@ -55,8 +55,43 @@ void CController::Stop()
 	dmr_device.CloseDevice();
 }
 
+bool CController::CheckTCModules() const
+{
+	// make sure the configured transcoded modules seems okay
+	const std::string modules(TRANSCODED_MODULES);
+	bool trouble = false;
+
+	if (modules.size() > 3)
+	{
+		std::cerr << "Too many transcoded modules defined!" << std::endl;
+		trouble = true;
+	}
+
+	for (unsigned int i =0; i<modules.size(); i++)
+	{
+		auto c = modules.at(i);
+		if (c < 'A' || c > 'Z') {
+			std::cerr << "Transcoded modules[" << i << "] is not an uppercase letter!" << std::endl;
+			trouble = true;
+		}
+	}
+
+	return trouble;
+}
 bool CController::InitDevices()
 {
+	if (CheckTCModules())
+		return true;
+
+	// M17 "devices", one for each module
+	const std::string modules(TRANSCODED_MODULES);
+	for ( auto c : modules)
+	{
+		c2_16[c] = std::unique_ptr<CCodec2>(new CCodec2(false));
+		c2_32[c] = std::unique_ptr<CCodec2>(new CCodec2(true));
+	}
+
+	// the 3003 devices
 	std::vector<std::string> deviceset;
 	std::string device;
 
@@ -151,18 +186,19 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 {
 	// the second half is silent in case this is frame is last.
 	uint8_t m17data[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x01, 0x43, 0x09, 0xe4, 0x9c, 0x08, 0x21 };
+	const auto m = packet->GetModule();
 	if (packet->IsSecond())
 	{
 		// get the first half from the store
 		memcpy(m17data, data_store[packet->GetModule()], 8);
 		// and then calculate the second half
-		c2_32.codec2_encode(m17data+8, packet->GetAudioSamples());
+		c2_32[m]->codec2_encode(m17data+8, packet->GetAudioSamples());
 		packet->SetM17Data(m17data);
 	}
 	else /* the packet is first */
 	{
 		// calculate the first half...
-		c2_32.codec2_encode(m17data, packet->GetAudioSamples());
+		c2_32[m]->codec2_encode(m17data, packet->GetAudioSamples());
 		// and then copy the calculated data to the data_store
 		memcpy(data_store[packet->GetModule()], m17data, 8);
 		// set the m17_is_set flag if this is the last packet
@@ -194,19 +230,20 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 			int16_t tmp[160];
 			// decode the second 8 data bytes
 			// and put it in the packet
-			c2_32.codec2_decode(tmp, packet->GetM17Data()+8);
+			c2_32[packet->GetModule()]->codec2_decode(tmp, packet->GetM17Data()+8);
 			packet->SetAudioSamples(tmp, false);
 		}
 	}
 	else /* it's a "first packet" */
 	{
+		const auto m = packet->GetModule();
 		if (packet->GetCodecIn() == ECodecType::c2_1600)
 		{
 			// c2_1600 encodes 40 ms of audio, 320 points, so...
 			// we need some temporary audio storage for decoding c2_1600:
 			int16_t tmp[320];
 			// decode it into the temporary storage
-			c2_16.codec2_decode(tmp, packet->GetM17Data()); // 8 bytes input produces 320 audio points
+			c2_16[m]->codec2_decode(tmp, packet->GetM17Data()); // 8 bytes input produces 320 audio points
 			// move the first and second half
 			// the first half is for the packet
 			packet->SetAudioSamples(tmp, false);
@@ -216,7 +253,7 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 		else /* codec_in is ECodecType::c2_3200 */
 		{
 			int16_t tmp[160];
-			c2_32.codec2_decode(tmp, packet->GetM17Data());
+			c2_32[m]->codec2_decode(tmp, packet->GetM17Data());
 			packet->SetAudioSamples(tmp, false);
 		}
 	}
