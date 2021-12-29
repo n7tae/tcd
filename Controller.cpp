@@ -147,29 +147,17 @@ void CController::ReadReflectorThread()
 				add_dst_mux.lock();
 				dstar_device.AddPacket(packet);
 				add_dst_mux.unlock();
-#ifdef DEBUG
-				if (0 == packet->GetSequence())
-					Dump(packet, "DStar from reflect to decode:");
-#endif
 				break;
 			case ECodecType::dmr:
 				add_dmr_mux.lock();
 				dmr_device.AddPacket(packet);
 				add_dmr_mux.unlock();
-#ifdef DEBUG
-				if (0 == packet->GetSequence())
-					Dump(packet, "DMR from reflect to decode:");
-#endif
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
 				c2_mux.lock();
 				codec2_queue.push(packet);
 				c2_mux.unlock();
-#ifdef DEBUG
-				if (0 == packet->GetSequence())
-					Dump(packet, "M17 from reflect to decode:");
-#endif
 				break;
 			default:
 				Dump(packet, "ERROR: Received a reflector packet with unknown Codec:");
@@ -305,13 +293,6 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	// send the packet over the socket
 	socket.Send(packet->GetTCPacket());
 	// the socket will automatically close after sending
-#ifdef DEBUG
-	AppendWave(packet);
-	if (packet->IsSecond())
-		AppendM17(packet);
-	if (0 == packet->GetSequence())
-		Dump(packet, "Complete:");
-#endif
 }
 
 void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)

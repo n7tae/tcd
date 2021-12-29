@@ -501,7 +501,7 @@ void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 	unsigned int s = inq.size();
 	if (s > maxsize)
 	{
-		std::cout << "inq size=" << s << std::endl;
+		std::cout << "input queue size for " << ((type==Encoding::dstar) ? "dstar" : "dmr") << " is " << s << std::endl;
 		maxsize = s;
 	}
 #endif
