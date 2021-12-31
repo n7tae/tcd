@@ -378,9 +378,20 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 void CDV3003::FeedDevice()
 {
 	const std::string modules(TRANSCODED_MODULES);
+	const std::size_t devcount = modules.size();
+	static std::size_t current = 0;	// make sure we cycle through all the input queues
 	while (keep_running)
 	{
-		auto packet = inq.pop();
+		std::shared_ptr<CTranscoderPacket> packet;
+		// try each input queue until we get a packet
+		for (std::size_t tries=0; tries<devcount; tries++)
+		{
+			packet = inq[current++].pop();
+			if (current > devcount)
+				current = 0;
+			if (packet)
+				break;
+		}
 		if (packet)
 		{
 			const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
@@ -495,14 +506,21 @@ void CDV3003::ReadDevice()
 
 void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
-	inq.push(packet);
+	static const std::string modules(TRANSCODED_MODULES);
+	static const unsigned int devcount = modules.size();
+	auto pos = modules.find(packet->GetModule());
+	if (pos < devcount)
+		inq[pos].push(packet);
+	else
+		std::cerr << "Incoming packet module, '" << packet->GetModule() << "', is not configured for this device!" << std::endl;
+
 #ifdef DEBUG
-	static unsigned int maxsize = 0;
-	unsigned int s = inq.size();
-	if (s > maxsize)
+	static unsigned int maxsize[3] = { 0, 0, 0 };
+	unsigned int s = inq[pos].size();
+	if (s > maxsize[pos])
 	{
-		std::cout << "input queue size for " << ((type==Encoding::dstar) ? "dstar" : "dmr") << " is " << s << std::endl;
-		maxsize = s;
+		std::cout << "input queue #" << pos << " size for " << ((type==Encoding::dstar) ? "dstar" : "dmr") << " is " << s << std::endl;
+		maxsize[pos] = s;
 	}
 #endif
 }

@@ -20,7 +20,6 @@
 #include <string>
 #include <sstream>
 #include <future>
-#include <mutex>
 #include <atomic>
 
 #include "PacketQueue.h"
@@ -118,7 +117,7 @@ private:
 	std::atomic<unsigned int> ch_depth, sp_depth;
 	std::atomic<bool> keep_running;
 	CPacketQueue vocq[3];	// we need a queue for each vocoder
-	CPacketQueue inq;		// and input queue
+	CPacketQueue inq[3];	// and input queues
 	std::future<void> feedFuture, readFuture;
 	std::string devicepath, productid, version;
 

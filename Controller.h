@@ -53,7 +53,7 @@ protected:
 	CDV3003 dmr_device{Encoding::dmr};
 
 	CPacketQueue codec2_queue;
-	std::mutex add_dst_mux, add_dmr_mux, c2_mux, send_mux;
+	std::mutex send_mux;
 
 	bool InitDevices();
 	// processing threads

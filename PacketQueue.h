@@ -19,40 +19,41 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <queue>
+#include <mutex>
 #include <memory>
 
 #include "TranscoderPacket.h"
 
 // for holding CTranscoder packets while the vocoders are working their magic
+// thread safe
 class CPacketQueue
 {
 public:
 	// pass thru
 	std::shared_ptr<CTranscoderPacket> pop()
 	{
+		std::lock_guard<std::mutex> lock(m);
 		std::shared_ptr<CTranscoderPacket> pack;
-		if (! queue.empty()) {
-			pack = queue.front();
-			queue.pop();
+		if (! q.empty()) {
+			pack = q.front();
+			q.pop();
 		}
 		return pack;
 	}
 
-	bool empty()
-	{
-		return queue.empty();
-	}
-
 	void push(std::shared_ptr<CTranscoderPacket> packet)
 	{
-		queue.push(packet);
+		std::lock_guard<std::mutex> lock(m);
+		q.push(packet);
 	}
 
 	std::size_t size()
 	{
-		return queue.size();
+		std::lock_guard<std::mutex> lock(m);
+		return q.size();
 	}
 
-protected:
-	std::queue<std::shared_ptr<CTranscoderPacket>> queue;
+private:
+	std::queue<std::shared_ptr<CTranscoderPacket>> q;
+	std::mutex m;
 };
