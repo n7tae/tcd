@@ -314,37 +314,6 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 	}
 }
 
-#ifdef DEBUG
-void CController::AppendWave(const std::shared_ptr<CTranscoderPacket> packet) const
-{
-	std::stringstream sstr;
-	sstr << std::hex << ntohs(packet->GetStreamId()) << ".raw";
-	std::ofstream pcmfile(sstr.str(), std::ofstream::app | std::ofstream::binary);
-	if (pcmfile.good())
-	{
-		pcmfile.write(reinterpret_cast<const char *>(packet->GetAudioSamples()), 320);
-
-		pcmfile.close();
-	}
-	else
-		std::cerr << "could not open pcm file " << sstr.str();
-}
-
-void CController::AppendM17(const std::shared_ptr<CTranscoderPacket> packet) const
-{
-	std::stringstream sstr;
-	sstr << std::hex << ntohs(packet->GetStreamId()) << ".m17";
-	std::ofstream m17file(sstr.str(), std::ofstream::app | std::ofstream::binary);
-	if (m17file.good())
-	{
-		m17file.write(reinterpret_cast<const char *>(packet->GetM17Data()), 16);
-
-		m17file.close();
-	}
-	else
-		std::cerr << "could not open M17 data file " << sstr.str();
-}
-
 void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::string &title) const
 {
 	std::stringstream line;
@@ -372,4 +341,3 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 
 	std::cout << line.str() << std::dec << std::endl;
 }
-#endif

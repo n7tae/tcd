@@ -63,8 +63,4 @@ protected:
 	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet);
 	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);
-#ifdef DEBUG
-	void AppendWave(const std::shared_ptr<CTranscoderPacket> packet) const;
-	void AppendM17(const std::shared_ptr<CTranscoderPacket> packet) const;
-#endif
 };
