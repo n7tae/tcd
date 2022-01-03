@@ -35,7 +35,7 @@ clean :
 # The install and uninstall targets need to be run by root
 install : $(EXE)
 	cp $(EXE) $(BINDIR)
-	cp ../systemd/$(EXE).service /etc/systemd/system/
+	cp systemd/$(EXE).service /etc/systemd/system/
 	systemctl enable $(EXE)
 	systemctl daemon-reload
 	systemctl start $(EXE)
