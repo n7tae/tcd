@@ -412,7 +412,7 @@ void CDV3003::FeedDevice()
 			}
 			else
 			{
-				waiting_packet[index] = packet;
+				waiting_packet[index].push(packet);
 
 				if (needs_audio)
 				{
@@ -455,7 +455,7 @@ void CDV3003::ReadDevice()
 		if (! GetResponse(p))
 		{
 			unsigned int channel = p.field_id - PKT_CHANNEL0;
-			auto packet = waiting_packet[channel];
+			auto packet = waiting_packet[channel].pop();
 			if (PKT_CHANNEL == p.header.packet_type)
 			{
 				if (12!=ntohs(p.header.payload_length) || PKT_CHAND!=p.payload.ambe.chand || 72!=p.payload.ambe.num_bits)
