@@ -20,6 +20,7 @@
 
 #include <queue>
 #include <mutex>
+#include <condition_variable>
 #include <memory>
 
 #include "TranscoderPacket.h"
@@ -29,15 +30,15 @@
 class CPacketQueue
 {
 public:
-	// pass thru
+	// blocks until there's something to pop
 	std::shared_ptr<CTranscoderPacket> pop()
 	{
-		std::lock_guard<std::mutex> lock(m);
-		std::shared_ptr<CTranscoderPacket> pack;
-		if (! q.empty()) {
-			pack = q.front();
-			q.pop();
+		std::unique_lock<std::mutex> lock(m);
+		while (q.empty()) {
+			c.wait(lock);
 		}
+		auto pack = q.front();
+		q.pop();
 		return pack;
 	}
 
@@ -45,15 +46,11 @@ public:
 	{
 		std::lock_guard<std::mutex> lock(m);
 		q.push(packet);
-	}
-
-	std::size_t size()
-	{
-		std::lock_guard<std::mutex> lock(m);
-		return q.size();
+		c.notify_one();
 	}
 
 private:
 	std::queue<std::shared_ptr<CTranscoderPacket>> q;
-	std::mutex m;
+	mutable std::mutex m;
+	std::condition_variable c;
 };

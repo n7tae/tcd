@@ -378,46 +378,41 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 void CDV3003::FeedDevice()
 {
 	const std::string modules(TRANSCODED_MODULES);
-	const std::size_t devcount = modules.size();
-	static std::size_t current = 0;	// make sure we cycle through all the input queues
+	const auto n = modules.size();
 	while (keep_running)
 	{
-		std::shared_ptr<CTranscoderPacket> packet;
-		// try each input queue until we get a packet
-		for (std::size_t tries=0; tries<devcount; tries++)
-		{
-			packet = inq[current++].pop();
-			if (current > devcount)
-				current = 0;
-			if (packet)
-				break;
-		}
-		if (packet)
-		{
-			const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
+		auto packet = input_queue.pop();	// blocks until there is something to pop
 
-			while (keep_running)	// wait until there is room
+		const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
+
+		while (keep_running)	// wait until there is room
+		{
+			if (needs_audio)
 			{
-				if (needs_audio)
-				{
-					// we need to decode ambe to audio
-					if (ch_depth < 2)
-						break;
-				}
-				else
-				{
-					// we need to encode audio to ambe
-					if (sp_depth < 2)
-						break;
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				// we need to decode ambe to audio
+				if (ch_depth < 2)
+					break;
 			}
-
-			if (keep_running)
+			else
 			{
-				auto index = modules.find(packet->GetModule());
-				// save the packet in the vocoder's queue while the vocoder does its magic
-				vocq[index].push(packet);
+				// we need to encode audio to ambe
+				if (sp_depth < 2)
+					break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+		}
+
+		if (keep_running)
+		{
+			auto index = modules.find(packet->GetModule());
+			// save the packet in the vocoder's queue while the vocoder does its magic
+			if (std::string::npos == index)
+			{
+				std::cerr << "Module '" << packet->GetModule() << "' is not configured on " << devicepath << std::endl;
+			}
+			else
+			{
+				waiting_packet[index] = packet;
 
 				if (needs_audio)
 				{
@@ -430,10 +425,6 @@ void CDV3003::FeedDevice()
 					sp_depth++;
 				}
 			}
-		}
-		else // no packet is in the input queue
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
 	}
 }
@@ -464,10 +455,10 @@ void CDV3003::ReadDevice()
 		if (! GetResponse(p))
 		{
 			unsigned int channel = p.field_id - PKT_CHANNEL0;
-			auto packet = vocq[channel].pop();
+			auto packet = waiting_packet[channel];
 			if (PKT_CHANNEL == p.header.packet_type)
 			{
-				if (12!=ntohs(p.header.payload_length) || 1!=p.payload.ambe.chand || 72!=p.payload.ambe.num_bits)
+				if (12!=ntohs(p.header.payload_length) || PKT_CHAND!=p.payload.ambe.chand || 72!=p.payload.ambe.num_bits)
 					dump("Improper ambe packet:", &p, packet_size(p));
 				sp_depth--;
 				if (Encoding::dstar == type)
@@ -478,7 +469,7 @@ void CDV3003::ReadDevice()
 			}
 			else if (PKT_SPEECH == p.header.packet_type)
 			{
-				if (323!=ntohs(p.header.payload_length) || 0!=p.payload.audio.speechd || 160!=p.payload.audio.num_samples)
+				if (323!=ntohs(p.header.payload_length) || PKT_SPEECHD!=p.payload.audio.speechd || 160!=p.payload.audio.num_samples)
 					dump("Improper audio packet:", &p, packet_size(p));
 				ch_depth--;
 				packet->SetAudioSamples(p.payload.audio.samples, true);
@@ -506,23 +497,7 @@ void CDV3003::ReadDevice()
 
 void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
-	static const std::string modules(TRANSCODED_MODULES);
-	static const unsigned int devcount = modules.size();
-	auto pos = modules.find(packet->GetModule());
-	if (pos < devcount)
-		inq[pos].push(packet);
-	else
-		std::cerr << "Incoming packet module, '" << packet->GetModule() << "', is not configured for this device!" << std::endl;
-
-#ifdef DEBUG
-	static unsigned int maxsize[3] = { 0, 0, 0 };
-	unsigned int s = inq[pos].size();
-	if (s > maxsize[pos])
-	{
-		std::cout << "input queue #" << pos << " size for " << ((type==Encoding::dstar) ? "dstar" : "dmr") << " is " << s << std::endl;
-		maxsize[pos] = s;
-	}
-#endif
+	input_queue.push(packet);
 }
 
 bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const

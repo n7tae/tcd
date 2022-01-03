@@ -116,8 +116,8 @@ private:
 	int fd;
 	std::atomic<unsigned int> ch_depth, sp_depth;
 	std::atomic<bool> keep_running;
-	CPacketQueue vocq[3];	// we need a queue for each vocoder
-	CPacketQueue inq[3];	// and input queues
+	std::shared_ptr<CTranscoderPacket> waiting_packet[3];	// the packet currently being processed in each vocoder
+	CPacketQueue input_queue;
 	std::future<void> feedFuture, readFuture;
 	std::string devicepath, productid, version;
 
