@@ -482,7 +482,7 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
     }
 
     while (bytesLeft > 0) {
-		status = FT_Read(ftHandle, &packet.payload, bytesLeft, &bytes_read);
+		status = FT_Read(ftHandle, &packet.field_id, bytesLeft, &bytes_read);
 		if (FT_OK != status)
 		{
 			FTDI_Error("Error reading packet payload", status);

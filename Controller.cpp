@@ -110,7 +110,7 @@ bool CController::DiscoverFtdiDevices(std::list<std::pair<std::string, std::stri
 
 		for ( int i = 0; i < iNbDevices; i++ )
 		{
-			std::cout << "Found '" << list[i].Description << "', SerialNo='" << list[i].SerialNumber << std::endl;
+			std::cout << "Found " << list[i].Description << ", SerialNo=" << list[i].SerialNumber << std::endl;
 			found.emplace_back(std::pair<std::string, std::string>(list[i].SerialNumber, list[i].Description));
 		}
 

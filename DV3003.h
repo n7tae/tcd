@@ -39,20 +39,20 @@
 #define PKT_INIT                0x0b
 #define PKT_PRODID              0x30
 #define PKT_VERSTRING           0x31
-#define PKT_PARITYBYTE          0x2F
+#define PKT_PARITYBYTE          0x2f
 #define PKT_RESET               0x33
 #define PKT_READY               0x39
 #define PKT_CHANNEL0            0x40
 #define PKT_CHANNEL1            0x41
 #define PKT_CHANNEL2            0x42
-#define PKT_PARITYMODE          0x3F
+#define PKT_PARITYMODE          0x3f
 #define PKT_ECMODE              0x05
 #define PKT_DCMODE              0x06
 #define PKT_COMPAND             0x32
-#define PKT_RATEP               0x0A
+#define PKT_RATEP               0x0a
 #define PKT_CHANFMT             0x15
 #define PKT_SPCHFMT             0x16
-#define PKT_GAIN                0x4B
+#define PKT_GAIN                0x4b
 
 #define packet_size(a) int(4 + ntohs((a).header.payload_length))
 
