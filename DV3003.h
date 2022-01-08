@@ -125,6 +125,7 @@ private:
 	void ReadDevice();
 	bool SetBaudRate(int baudrate);
 	bool InitDV3003();
+	bool Purge();
 	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
 	bool checkResponse(SDV3003_Packet &responsePacket, uint8_t response) const;
 	bool SendAudio(const uint8_t channel, const int16_t *audio) const;

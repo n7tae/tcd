@@ -138,14 +138,13 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 
 	if (SetBaudRate(baudrate))
 		return true;
-#ifdef DEBUG
 	std::cout << ttyname << " baudrate it set to " << baudrate << std::endl;
-#endif
 
 	devicepath.assign(ttyname);
-#ifdef DEBUG
 	std::cout << "Opened " << devicepath << " using fd " << fd << std::endl;
-#endif
+
+	if (Purge())
+		return true;
 
 	if (InitDV3003())
 		return true;
@@ -158,11 +157,31 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 	return false;
 }
 
+bool CDV3003::Purge()
+{
+	const char zeros[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	// if there is a partial command in the input, this will clear it
+	for (unsigned int i=0; i<35; i++)
+	{
+		auto written = write(fd, zeros, sizeof(zeros));
+		if (0 > written)
+		{
+			std::cerr << "Cleanse failed to write zeros to " << devicepath << std::endl;
+			return true;
+		}
+		if (written < 10)
+		{
+			std::cerr << "On Cleanse pass " << i << ", only " << written << " bytes were written to " << devicepath << std::endl;
+		}
+	}
+	return false;
+}
+
 bool CDV3003::InitDV3003()
 {
 	SDV3003_Packet responsePacket, ctrlPacket;
 
-	// ********** hard reset *************
+	// ********** soft reset *************
     ctrlPacket.start_byte = PKT_HEADER;
     ctrlPacket.header.payload_length = htons(3);
     ctrlPacket.header.packet_type = PKT_CONTROL;
@@ -183,9 +202,7 @@ bool CDV3003::InitDV3003()
 	   std::cerr << "InitDV3003: invalid response to reset" << std::endl;
 	   return true;
 	}
-#ifdef DEBUG
 	std::cout << "Successfully reset " << devicepath << std::endl;
-#endif
 
 	// ********** turn off parity *********
 	ctrlPacket.header.payload_length = htons(4);
@@ -211,9 +228,7 @@ bool CDV3003::InitDV3003()
 		return true;
 	}
 
-#ifdef DEBUG
 	std::cout << "Successfully disabled parity on " << devicepath << std::endl;
-#endif
 
 	// ********* Product ID and Version *************
 	ctrlPacket.header.payload_length = htons(1);
