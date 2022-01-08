@@ -21,6 +21,8 @@
 #include <atomic>
 #include <future>
 #include <mutex>
+#include <list>
+#include <utility>
 
 #include "codec2.h"
 #include "DV3003.h"
@@ -55,6 +57,7 @@ protected:
 	CPacketQueue codec2_queue;
 	std::mutex send_mux;
 
+	bool DiscoverFtdiDevices(std::list<std::pair<std::string, std::string>> &found);
 	bool InitDevices();
 	// processing threads
 	void ReadReflectorThread();

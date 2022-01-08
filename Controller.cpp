@@ -78,6 +78,50 @@ bool CController::CheckTCModules() const
 
 	return trouble;
 }
+
+bool CController::DiscoverFtdiDevices(std::list<std::pair<std::string, std::string>> &found)
+{
+	int iNbDevices = 0;
+	auto status = FT_CreateDeviceInfoList((LPDWORD)&iNbDevices);
+	if (FT_OK != status)
+	{
+		std::cerr << "Could not create FTDI device list" << std::endl;
+		return true;
+	}
+
+	std::cout << "Detected " << iNbDevices << " USB-FTDI-based DVSI devices" << std::endl;
+	if ( iNbDevices > 0 )
+	{
+		// allocate the list
+		FT_DEVICE_LIST_INFO_NODE *list = new FT_DEVICE_LIST_INFO_NODE[iNbDevices];
+		if (nullptr == list)
+		{
+			std::cerr << "Could not create new device list" << std::endl;
+			return true;
+		}
+
+		// fill
+		status = FT_GetDeviceInfoList(list, (LPDWORD)&iNbDevices);
+		if (FT_OK != status)
+		{
+			std::cerr << "Could not get FTDI device list" << std::endl;
+			return true;
+		}
+
+		for ( int i = 0; i < iNbDevices; i++ )
+		{
+			std::cout << "Found '" << list[i].Description << "', SerialNo='" << list[i].SerialNumber << std::endl;
+			found.emplace_back(std::pair<std::string, std::string>(list[i].SerialNumber, list[i].Description));
+		}
+
+		// and delete
+		delete[] list;
+	}
+
+	// done
+	return false;
+}
+
 bool CController::InitDevices()
 {
 	if (CheckTCModules())
@@ -92,18 +136,10 @@ bool CController::InitDevices()
 	}
 
 	// the 3003 devices
-	std::vector<std::string> deviceset;
-	std::string device;
+	std::list<std::pair<std::string, std::string>> deviceset;
 
-	for (int i=0; i<32; i++) {
-		device.assign("/dev/ttyUSB");
-		device += std::to_string(i);
-
-		if (access(device.c_str(), R_OK | W_OK))
-			break;
-		else
-			deviceset.push_back(device);
-	}
+	if (DiscoverFtdiDevices(deviceset))
+		return true;
 
 	if (deviceset.empty()) {
 		std::cerr << "could not find a device!" << std::endl;
@@ -117,12 +153,17 @@ bool CController::InitDevices()
 	}
 
 	//initialize each device
-	if (dstar_device.OpenDevice(deviceset[0], 921600) || dmr_device.OpenDevice(deviceset[1], 921600))
-		return true;
+	for (const auto &it : deviceset)
+	{
+		if (dstar_device.OpenDevice(it.first, it.second, 921600))
+			return true;
+	}
 
 	// and start them up!
 	dstar_device.Start();
 	dmr_device.Start();
+
+	deviceset.clear();
 
 	return false;
 }

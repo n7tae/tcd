@@ -23,6 +23,7 @@
 #include <atomic>
 
 #include "PacketQueue.h"
+#include "ftd2xx.h"
 
 #define USB3XXX_MAXPACKETSIZE   1024        // must be multiple of 64
 
@@ -103,29 +104,27 @@ class CDV3003 {
 public:
 	CDV3003(Encoding t);
 	~CDV3003();
-	bool OpenDevice(const std::string &device, int baudrate);
+	bool OpenDevice(const std::string &serialno, const std::string &desc, int baudrate);
 	void Start();
 	void CloseDevice();
-	std::string GetDevicePath() const;
-	std::string GetProductID() const;
-	std::string GetVersion() const;
+	std::string GetDescription() const;
 	void AddPacket(const std::shared_ptr<CTranscoderPacket> packet);
 
 private:
 	const Encoding type;
-	int fd;
-	std::atomic<unsigned int> ch_depth, sp_depth;
+	FT_HANDLE ftHandle;
+	std::atomic<unsigned int> buffer_depth;
 	std::atomic<bool> keep_running;
 	CPacketQueue waiting_packet[3];	// the packet currently being processed in each vocoder
 	CPacketQueue input_queue;
 	std::future<void> feedFuture, readFuture;
-	std::string devicepath, productid, version;
+	std::string description;
 
+	bool DiscoverFtdiDevices();
+	void FTDI_Error(const char *where, FT_STATUS status) const;
 	void FeedDevice();
 	void ReadDevice();
-	bool SetBaudRate(int baudrate);
 	bool InitDV3003();
-	bool Purge();
 	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
 	bool checkResponse(SDV3003_Packet &responsePacket, uint8_t response) const;
 	bool SendAudio(const uint8_t channel, const int16_t *audio) const;

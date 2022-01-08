@@ -14,7 +14,7 @@ else
 CFLAGS = -W -Werror -Icodec2 -MMD -MD -std=c++11
 endif
 
-LDFLAGS = -pthread
+LDFLAGS = -lftd2xx -pthread
 
 SRCS = $(wildcard *.cpp) $(wildcard codec2/*.cpp)
 OBJS = $(SRCS:.cpp=.o)
@@ -22,7 +22,7 @@ DEPS = $(SRCS:.cpp=.d)
 EXE = tcd
 
 $(EXE) : $(OBJS)
-	$(GCC) $(LDFLAGS) $(OBJS) -o $@
+	$(GCC) -o $@ $(OBJS) $(LDFLAGS)
 
 %.o : %.cpp
 	$(GCC) $(CFLAGS) -c $< -o $@

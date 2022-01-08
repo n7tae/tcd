@@ -38,7 +38,7 @@
 
 extern CController Controller;
 
-CDV3003::CDV3003(Encoding t) : type(t), fd(-1), ch_depth(0), sp_depth(0)
+CDV3003::CDV3003(Encoding t) : type(t), ftHandle(nullptr), buffer_depth(0)
 {
 }
 
@@ -50,14 +50,86 @@ CDV3003::~CDV3003()
 void CDV3003::CloseDevice()
 {
 	keep_running = false;
-	if (fd >= 0) {
-		close(fd);
-		fd = -1;
+	if (ftHandle)
+	{
+		auto status = FT_Close(ftHandle);
+		if (FT_OK != status)
+			FTDI_Error("FT_Close", status);
 	}
+
 	if (feedFuture.valid())
 		feedFuture.get();
 	if (readFuture.valid())
 		readFuture.get();
+}
+
+void CDV3003::FTDI_Error(const char *where, FT_STATUS status) const
+{
+	std::cerr << "FTDI ERROR: " << where << ": ";
+	switch (status)
+	{
+	case FT_INVALID_HANDLE:
+		std::cerr << "handle is invalid";
+		break;
+	case FT_DEVICE_NOT_FOUND:
+		std::cerr << "device not found";
+		break;
+	case FT_DEVICE_NOT_OPENED:
+		std::cerr << "device not opne";
+		break;
+	case FT_IO_ERROR:
+		std::cerr << "io error";
+		break;
+	case FT_INSUFFICIENT_RESOURCES:
+		std::cerr << "insufficient resources";
+		break;
+	case FT_INVALID_PARAMETER:
+		std::cerr << "invalid parameter";
+		break;
+	case FT_INVALID_BAUD_RATE:
+		std::cerr << "invalid baud rate";
+		break;
+	case FT_DEVICE_NOT_OPENED_FOR_ERASE:
+		std::cerr << "device not opened for erase";
+		break;
+	case FT_DEVICE_NOT_OPENED_FOR_WRITE:
+		std::cerr << "device not opened for write";
+		break;
+	case FT_FAILED_TO_WRITE_DEVICE:
+		std::cerr << "failed to write device";
+		break;
+	case FT_EEPROM_READ_FAILED:
+		std::cerr << "eeprom read failed";
+		break;
+	case FT_EEPROM_WRITE_FAILED:
+		std::cerr << "eeprom write failed";
+		break;
+	case FT_EEPROM_ERASE_FAILED:
+		std::cerr << "eeprom erase failed";
+		break;
+	case FT_EEPROM_NOT_PRESENT:
+		std::cerr << "eeprom not present";
+		break;
+	case FT_EEPROM_NOT_PROGRAMMED:
+		std::cerr << "eeprom not programmed";
+		break;
+	case FT_INVALID_ARGS:
+		std::cerr << "invalid arguments";
+		break;
+	case FT_NOT_SUPPORTED:
+		std::cerr << "not supported";
+		break;
+	case FT_OTHER_ERROR:
+		std::cerr << "unknown other error";
+		break;
+	case FT_DEVICE_LIST_NOT_READY:
+		std::cerr << "device list not ready";
+		break;
+	default:
+		std::cerr << "unknown status: " << status;
+		break;
+	}
+	std::cerr << std::endl;
 }
 
 bool CDV3003::checkResponse(SDV3003_Packet &p, uint8_t response) const
@@ -68,83 +140,86 @@ bool CDV3003::checkResponse(SDV3003_Packet &p, uint8_t response) const
 	return false;
 }
 
-std::string CDV3003::GetDevicePath() const
+std::string CDV3003::GetDescription() const
 {
-	return devicepath;
+	return description;
 }
 
-std::string CDV3003::GetVersion() const
+bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, int baudrate)
 {
-	return version;
-}
-
-std::string CDV3003::GetProductID() const
-{
-	return productid;
-}
-
-bool CDV3003::SetBaudRate(int baudrate)
-{
-	struct termios tty;
-
-	if (tcgetattr(fd, &tty) != 0) {
-		std::cerr << devicepath << " tcgetattr: " << strerror(errno) << std::endl;
-		close(fd);
+	auto status = FT_OpenEx((PVOID)serialno.c_str(), FT_OPEN_BY_SERIAL_NUMBER, &ftHandle);
+	if (FT_OK != status)
+	{
+		FTDI_Error("FT_OpenEx", status);
 		return true;
 	}
 
-	//  Input speed = output speed
-	cfsetispeed(&tty, B0);
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	FT_Purge(ftHandle, FT_PURGE_RX | FT_PURGE_TX );
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-	switch(baudrate) {
-		case 230400:
-			cfsetospeed(&tty, B230400);
-			break;
-		case 460800:
-			cfsetospeed(&tty, B460800);
-			break;
-		case 921600:
-			cfsetospeed(&tty, B921600);
-			break;
-		default:
-			std::cerr << devicepath << " unsupported baud rate " << baudrate << std::endl;
-			close(fd);
-			return true;
-	}
-
-	tty.c_lflag    &= ~(ECHO | ECHOE | ICANON | IEXTEN | ISIG);
-	tty.c_iflag    &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON | IXOFF | IXANY);
-	tty.c_cflag    &= ~(CSIZE | CSTOPB | PARENB);
-	tty.c_cflag    |= CS8 | CRTSCTS;
-	tty.c_oflag    &= ~(OPOST);
-	tty.c_cc[VMIN] = 0;
-	tty.c_cc[VTIME] = 1;
-
-	if (tcsetattr(fd, TCSANOW, &tty) != 0) {
-		std::cerr << devicepath << " tcsetattr: " << strerror(errno) << std::endl;
-		close(fd);
-		return true;
-	}
-	return false;
-}
-
-bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
-{
-	fd = open(ttyname.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
-	if (fd < 0) {
-		std::cerr << "error when opening " << ttyname << ": " << strerror(errno) << std::endl;
+	status = FT_SetDataCharacteristics(ftHandle, FT_BITS_8, FT_STOP_BITS_1, FT_PARITY_NONE);
+	if (status != FT_OK)
+	{
+		FTDI_Error("FT_SetDataCharacteristics", status);
 		return true;
 	}
 
-	if (SetBaudRate(baudrate))
+	status = FT_SetFlowControl(ftHandle, FT_FLOW_RTS_CTS, 0x11, 0x13);
+	if (status != FT_OK)
+	{
+		FTDI_Error("FT_SetFlowControl", status);
 		return true;
-	std::cout << ttyname << " baudrate it set to " << baudrate << std::endl;
+	}
 
-	devicepath.assign(ttyname);
-	std::cout << "Opened " << devicepath << " using fd " << fd << std::endl;
-
-	if (Purge())
+	status = FT_SetRts(ftHandle);
+	if (status != FT_OK)
+	{
+		FTDI_Error((char *)"FT_SetRts", status);
 		return true;
+	}
+
+	//for usb-3012 pull DTR high to take AMBE3003 out of reset.
+	//for other devices noting is connected to DTR so it is a dont care
+	status = FT_ClrDtr(ftHandle);
+	if (status != FT_OK)
+	{
+		FTDI_Error((char *)"FT_ClrDtr", status);
+		return true;
+	}
+
+	status = FT_SetBaudRate(ftHandle, baudrate );
+	if (status != FT_OK)
+	{
+		FTDI_Error((char *)"FT_SetBaudRate", status);
+		return false;
+	}
+
+	status = FT_SetLatencyTimer(ftHandle, 4);
+	if (status != FT_OK)
+	{
+		FTDI_Error((char *)"FT_SetLatencyTimer", status);
+		return true;
+	}
+
+	status = FT_SetUSBParameters(ftHandle, USB3XXX_MAXPACKETSIZE, 0);
+	if (status != FT_OK){
+		FTDI_Error((char *)"FT_SetUSBParameters", status);
+		return true;
+	}
+
+	status = FT_SetTimeouts(ftHandle, 200, 200 );
+	if (status != FT_OK)
+	{
+		FTDI_Error((char *)"FT_SetTimeouts", status);
+		return false;
+	}
+
+	description.assign(desc);
+	description.append(": ");
+	description.append(serialno);
+
+	std::cout << "Opened " << description << std::endl;
 
 	if (InitDV3003())
 		return true;
@@ -153,26 +228,6 @@ bool CDV3003::OpenDevice(const std::string &ttyname, int baudrate)
 	{
 		if (ConfigureVocoder(ch, type))
 			return true;
-	}
-	return false;
-}
-
-bool CDV3003::Purge()
-{
-	const char zeros[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	// if there is a partial command in the input, this will clear it
-	for (unsigned int i=0; i<35; i++)
-	{
-		auto written = write(fd, zeros, sizeof(zeros));
-		if (0 > written)
-		{
-			std::cerr << "Cleanse failed to write zeros to " << devicepath << std::endl;
-			return true;
-		}
-		if (written < 10)
-		{
-			std::cerr << "On Cleanse pass " << i << ", only " << written << " bytes were written to " << devicepath << std::endl;
-		}
 	}
 	return false;
 }
@@ -188,84 +243,127 @@ bool CDV3003::InitDV3003()
     ctrlPacket.field_id = PKT_RESET;
 	ctrlPacket.payload.ctrl.data.paritymode[0] = PKT_PARITYBYTE;
 	ctrlPacket.payload.ctrl.data.paritymode[1] = 0x3U ^ PKT_RESET ^ PKT_PARITYBYTE;
-	if (write(fd, &ctrlPacket, packet_size(ctrlPacket)) == -1) {
-		std::cerr << "InitDV3003: error writing reset packet: " << strerror(errno) << std::endl;
+	DWORD written = 0;
+	auto status = FT_Write(ftHandle, &ctrlPacket, 7, &written);
+	if (FT_OK != status)
+	{
+		FTDI_Error("Error writing soft reset packet", status);
+		return true;
+	}
+	else if (7 != written)
+	{
+		std::cerr << "Incomplete soft reset packet write" << std::endl;
 		return true;
 	}
 
-	if (GetResponse(responsePacket)) {
-		std::cerr << "InitDV3003: error receiving response to reset" << std::endl;
+	if (GetResponse(responsePacket))
+	{
+		std::cerr << "Error receiving response to reset" << std::endl;
 		return true;
 	}
 
-	if (checkResponse(responsePacket, PKT_READY)) {
-	   std::cerr << "InitDV3003: invalid response to reset" << std::endl;
+	if (checkResponse(responsePacket, PKT_READY))
+	{
+	   std::cerr << "Invalid response to soft reset" << std::endl;
+	   dump("Soft Reset Response Packet:", &responsePacket, packet_size(responsePacket));
 	   return true;
 	}
-	std::cout << "Successfully reset " << devicepath << std::endl;
+	std::cout << "Successfully did a soft reset on " << description << std::endl;
 
 	// ********** turn off parity *********
+	ctrlPacket.start_byte = PKT_HEADER;
 	ctrlPacket.header.payload_length = htons(4);
+	ctrlPacket.header.packet_type = PKT_CONTROL;
 	ctrlPacket.field_id = PKT_PARITYMODE;
 	ctrlPacket.payload.ctrl.data.paritymode[0] = 0;
 	ctrlPacket.payload.ctrl.data.paritymode[1] = PKT_PARITYBYTE;
 	ctrlPacket.payload.ctrl.data.paritymode[2] = 0x4U ^ PKT_PARITYMODE ^ PKT_PARITYBYTE;
-	if (write(fd, &ctrlPacket, packet_size(ctrlPacket)) == -1) {
-		std::cerr << "InitDV3003: error writing parity control packet: " << strerror(errno) << std::endl;
+	status = FT_Write(ftHandle, &ctrlPacket, 8, &written);
+	if (FT_OK != status)
+	{
+		FTDI_Error("Error writing parity control packet: ", status);
+		return true;
+	}
+	else if (8 != written)
+	{
+		std::cerr << "Incomplete disable parity packet write" << std::endl;
 		return true;
 	}
 
-	memset(&responsePacket, 0, sizeof(responsePacket));
-	if (GetResponse(responsePacket)) {
-		std::cerr << "InitDV3003: error receiving response to parity set" << std::endl;
-		dump("Parity Ctrl Response Packet", &responsePacket, 4+ntohs(responsePacket.header.payload_length));
+	if (GetResponse(responsePacket))
+	{
+		std::cerr << "Error receiving response to parity set" << std::endl;
 		return true;
 	}
 
-	if (checkResponse(responsePacket, PKT_PARITYMODE)) {
-		std::cerr << "InitDV3003: invalid response to parity control" << std::endl;
-		dump("Parity Ctrl Response Packet", &responsePacket, packet_size(responsePacket));
+	if (checkResponse(responsePacket, PKT_PARITYMODE))
+	{
+		std::cerr << "Invalid response to parity control" << std::endl;
+		dump("Parity Ctrl Response Packet:", &responsePacket, packet_size(responsePacket));
 		return true;
 	}
 
-	std::cout << "Successfully disabled parity on " << devicepath << std::endl;
+	std::cout << "Successfully disabled parity on " << description << std::endl;
 
 	// ********* Product ID and Version *************
+	ctrlPacket.start_byte = PKT_HEADER;
 	ctrlPacket.header.payload_length = htons(1);
+	ctrlPacket.header.packet_type = PKT_CONTROL;
 	ctrlPacket.field_id = PKT_PRODID;
-	if (write(fd, &ctrlPacket, packet_size(ctrlPacket)) == -1) {
-		std::cerr << "InitDV3003: error writing product id packet: " << strerror(errno) << std::endl;
+
+	status = FT_Write(ftHandle, &ctrlPacket, 5, &written);
+	if (FT_OK != status)
+	{
+		FTDI_Error("Error writing Product ID packet", status);
+		return true;
+	}
+	else if (5 != written)
+	{
+		std::cerr << "Incomplete Product ID Packet write" << std::endl;
 		return true;
 	}
 
-	if (GetResponse(responsePacket)) {
-		std::cerr << "InitDV3003: error receiving response to product id request" << std::endl;
+	if (GetResponse(responsePacket))
+	{
+		std::cerr << "Error receiving response to Product ID request" << std::endl;
 		return true;
 	}
 
-	if (checkResponse(responsePacket, PKT_PRODID)) {
-	   std::cerr << "InitDV3003: invalid response to product id query" << std::endl;
+	if (checkResponse(responsePacket, PKT_PRODID))
+	{
+	   std::cerr << "Invalid response to Product ID query" << std::endl;
+	   dump("Product ID Response Packet", &responsePacket, packet_size(responsePacket));
 	   return true;
 	}
-	productid.assign(responsePacket.payload.ctrl.data.prodid);
+	const std::string productid(responsePacket.payload.ctrl.data.prodid);
 
 	ctrlPacket.field_id = PKT_VERSTRING;
-	if (write(fd, &ctrlPacket, packet_size(ctrlPacket)) == -1) {
-		std::cerr << "InitDV3003: error writing version packet: " << strerror(errno) << std::endl;
+	status = FT_Write(ftHandle, &ctrlPacket, 5, &written);
+	if (FT_OK != status)
+	{
+		FTDI_Error("Error writing Version packet", status);
+		return true;
+	}
+	else if (5 != written)
+	{
+		std::cerr << "Incomplete Version packet write" << std::endl;
 		return true;
 	}
 
-	if (GetResponse(responsePacket)) {
-		std::cerr << "InitDV3003: error receiving response to version request" << std::endl;
+	if (GetResponse(responsePacket))
+	{
+		std::cerr << "Error receiving response to Version request" << std::endl;
 		return true;
 	}
 
-	if (checkResponse(responsePacket, PKT_VERSTRING)) {
-	   std::cerr << "InitDV3003: invalid response to version query" << std::endl;
+	if (checkResponse(responsePacket, PKT_VERSTRING))
+	{
+	   std::cerr << "Invalid response to Version query" << std::endl;
+	   dump("Product Version Response Packet:", &responsePacket, packet_size(responsePacket));
 	   return true;
 	}
-	version.assign(responsePacket.payload.ctrl.data.version);
-	std::cout << "Found " << productid << " version " << version << " at " << devicepath << std::endl;
+	const std::string version(responsePacket.payload.ctrl.data.version);
+	std::cout << description << ": ID=" <<  productid << " Version=" << version << std::endl;
 
 	return false;
 }
@@ -311,80 +409,87 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 	memcpy(controlPacket.payload.codec.init, init, 2);
 
 	// write packet
-	if (0 > write(fd, &controlPacket, packet_size(controlPacket)) )
+	DWORD written;
+	const DWORD size = packet_size(controlPacket);
+	auto status = FT_Write(ftHandle, &controlPacket, size, &written);
+	if (FT_OK != status)
 	{
-		std::cerr << "error writing codec config packet" << strerror(errno) << std::endl;
+		FTDI_Error("error writing codec config packet", status);
+		return true;
+	}
+	else if (size != written)
+	{
+		std::cerr << "Incomplete Configuration packet write" << std::endl;
 		return true;
 	}
 
-	memset(&responsePacket, 0, sizeof(SDV3003_Packet));
-	if (GetResponse(responsePacket)) {
-		std::cerr << "error reading vocoder config response packet" << std::endl;
+	if (GetResponse(responsePacket))
+	{
+		std::cerr << "Error reading Configuration response packet" << std::endl;
 		return true;
 	}
 
 	if ((ntohs(responsePacket.header.payload_length) != 16) || (responsePacket.field_id != pkt_ch) || (0 != memcmp(responsePacket.payload.ctrl.data.resp, resp, sizeof(resp))))
 	{
-		std::cerr << "vocoder config response packet failed" << std::endl;
-		dump("Configuration response was:", &responsePacket, sizeof(responsePacket));
+		std::cerr << "Config response packet failed" << std::endl;
+		dump("Configuration Response Packet:", &responsePacket, sizeof(responsePacket));
 		return true;
 	};
-#ifdef DEBUG
-	std::cout << devicepath << " channel " << (unsigned int)(pkt_ch - PKT_CHANNEL0) << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
-#endif
+
+	std::cout << description << " channel " << (unsigned int)(pkt_ch - PKT_CHANNEL0) << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
+
 	return false;
 }
 
 bool CDV3003::GetResponse(SDV3003_Packet &packet)
 {
-	ssize_t bytesRead;
+	FT_STATUS status;
+	DWORD bytes_read;
 
 	// get the start byte
-	packet.start_byte = 0U;
-	const unsigned limit = sizeof(SDV3003_Packet) + 2;
-	unsigned got = 0;
-	for (unsigned i = 0U; i < limit; ++i) {
-		bytesRead = read(fd, &packet.start_byte, 1);
-		if (bytesRead == -1) {
-			std::cerr << "CDV3003: Error reading from serial port: " << strerror(errno) << std::endl;
+	for (unsigned i = 0U; i < USB3XXX_MAXPACKETSIZE+2; ++i) {
+		status = FT_Read(ftHandle, &packet.start_byte, 1, &bytes_read);
+		if (FT_OK != status)
+		{
+			FTDI_Error("Reading packet start byte", status);
 			return true;
 		}
-		if (bytesRead)
-			got++;
 		if (packet.start_byte == PKT_HEADER)
 			break;
 	}
+
 	if (packet.start_byte != PKT_HEADER) {
-		std::cerr << "CDV3003: Couldn't find start byte in serial data: tried " << limit << " times, got " << got << " bytes" << std::endl;
+		std::cerr << "Couldn't find start byte!" << std::endl;
 		return true;
 	}
 
 	// get the packet size and type (three bytes)
-	ssize_t bytesLeft = sizeof(packet.header);
-	ssize_t total = bytesLeft;
+	DWORD bytesLeft = sizeof(packet.header);
 	while (bytesLeft > 0) {
-		bytesRead = read(fd, ((uint8_t *) &packet.header) + total - bytesLeft, bytesLeft);
-		if(bytesRead == -1) {
-			std::cout << "AMBEserver: Couldn't read serial data header" << std::endl;
+		status = FT_Read(ftHandle, &packet.header, sizeof(packet.header), &bytes_read);
+		if (FT_OK != status)
+		{
+			FTDI_Error("Error reading response packet header", status);
 			return true;
 		}
-		bytesLeft -= bytesRead;
+		bytesLeft -= bytes_read;
 	}
 
-	total = bytesLeft = ntohs(packet.header.payload_length);
+	bytesLeft = ntohs(packet.header.payload_length);
     if (bytesLeft > 1 + int(sizeof(packet.payload))) {
         std::cout << "AMBEserver: Serial payload exceeds buffer size: " << int(bytesLeft) << std::endl;
         return true;
     }
 
     while (bytesLeft > 0) {
-        bytesRead = read(fd, ((uint8_t *) &packet.field_id) + total - bytesLeft, bytesLeft);
-        if (bytesRead == -1) {
-            std::cerr << "AMBEserver: Couldn't read payload: " << strerror(errno) << std::endl;
-            return true;
-        }
+		status = FT_Read(ftHandle, &packet.payload, bytesLeft, &bytes_read);
+		if (FT_OK != status)
+		{
+			FTDI_Error("Error reading packet payload", status);
+			return true;
+		}
 
-        bytesLeft -= bytesRead;
+        bytesLeft -= bytes_read;
     }
 
     return false;
@@ -398,22 +503,12 @@ void CDV3003::FeedDevice()
 	{
 		auto packet = input_queue.pop();	// blocks until there is something to pop
 
-		const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
 
 		while (keep_running)	// wait until there is room
 		{
-			if (needs_audio)
-			{
-				// we need to decode ambe to audio
-				if (ch_depth < 2)
-					break;
-			}
-			else
-			{
-				// we need to encode audio to ambe
-				if (sp_depth < 2)
-					break;
-			}
+			if (buffer_depth < 2)
+				break;
+
 			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 		}
 
@@ -423,22 +518,23 @@ void CDV3003::FeedDevice()
 			// save the packet in the vocoder's queue while the vocoder does its magic
 			if (std::string::npos == index)
 			{
-				std::cerr << "Module '" << packet->GetModule() << "' is not configured on " << devicepath << std::endl;
+				std::cerr << "Module '" << packet->GetModule() << "' is not configured on " << description << std::endl;
 			}
 			else
 			{
 				waiting_packet[index].push(packet);
 
+				const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
+
 				if (needs_audio)
 				{
 					SendData(index, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
-					ch_depth++;
 				}
 				else
 				{
 					SendAudio(index, packet->GetAudioSamples());
-					sp_depth++;
 				}
+				buffer_depth++;
 			}
 		}
 	}
@@ -448,24 +544,6 @@ void CDV3003::ReadDevice()
 {
 	while (keep_running)
 	{
-		fd_set FdSet;
-		FD_ZERO(&FdSet);
-		FD_SET(fd, &FdSet);
-		struct timeval tv;
-		tv.tv_sec = 0;
-		tv.tv_usec = 400000;	// wait for 0.4 sec for something to read
-		auto rval = select(fd+1, &FdSet, 0, 0, &tv);
-
-		if (rval < 0)
-		{
-			std::cerr << "ERROR: select() on " << devicepath << ": " << strerror(errno) << std::endl;
-			keep_running = false;
-			exit(1);
-		}
-
-		if (0 == rval)
-			continue;	// nothing to read, try again
-
 		dv3003_packet p;
 		if (! GetResponse(p))
 		{
@@ -475,7 +553,7 @@ void CDV3003::ReadDevice()
 			{
 				if (12!=ntohs(p.header.payload_length) || PKT_CHAND!=p.payload.ambe.chand || 72!=p.payload.ambe.num_bits)
 					dump("Improper ambe packet:", &p, packet_size(p));
-				sp_depth--;
+				buffer_depth--;
 				if (Encoding::dstar == type)
 					packet->SetDStarData(p.payload.ambe.data);
 				else
@@ -486,7 +564,7 @@ void CDV3003::ReadDevice()
 			{
 				if (323!=ntohs(p.header.payload_length) || PKT_SPEECHD!=p.payload.audio.speechd || 160!=p.payload.audio.num_samples)
 					dump("Improper audio packet:", &p, packet_size(p));
-				ch_depth--;
+				buffer_depth--;
 				packet->SetAudioSamples(p.payload.audio.samples, true);
 			}
 			else
@@ -530,11 +608,20 @@ bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
 		p.payload.audio.samples[i] = htons(audio[i]);
 
 	// send audio packet to DV3000
-	int size = packet_size(p);
-	if (write(fd, &p, size) != size) {
-		std::cerr << "Error sending audio packet" << std::endl;
+	const DWORD size = packet_size(p);
+	DWORD written;
+	auto status = FT_Write(ftHandle, &p, size, &written);
+	if (FT_OK != status)
+	{
+		FTDI_Error("Error writing audio packet", status);
 		return true;
 	}
+	else if (size != written)
+	{
+		std::cerr << "Incomplete Speech Packet write on " << description << std::endl;
+		return true;
+	}
+
 	return false;
 }
 
@@ -551,12 +638,20 @@ bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
 	memcpy(p.payload.ambe.data, data, 9);
 
 	// send data packet to DV3000
-	int size = packet_size(p);
-	if (write(fd, &p, size) != size) {
-		std::cerr << "SendData: error sending data packet" << std::endl;
-		dump("Received Data", &p, size);
+	const DWORD size = packet_size(p);
+	DWORD written;
+	auto status = FT_Write(ftHandle, &p, size, &written);
+	if (FT_OK != status)
+	{
+		FTDI_Error("Error writing AMBE Packet", status);
 		return true;
 	}
+	else if (size != written)
+	{
+		std::cerr << "Incomplete AMBE Packet write on " << description << std::endl;
+		return true;
+	}
+
 	return false;
 }
 
