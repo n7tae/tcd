@@ -153,10 +153,12 @@ bool CController::InitDevices()
 	}
 
 	//initialize each device
-	for (const auto &it : deviceset)
+	while (! deviceset.empty())
 	{
-		if (dstar_device.OpenDevice(it.first, it.second, 921600))
-			return true;
+		dstar_device.OpenDevice(deviceset.front().first, deviceset.front().second, 921600);
+		deviceset.pop_front();
+		dmr_device.OpenDevice(deviceset.front().first, deviceset.front().second, 921600);
+		deviceset.pop_front();
 	}
 
 	// and start them up!

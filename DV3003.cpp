@@ -175,43 +175,56 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 	status = FT_SetRts(ftHandle);
 	if (status != FT_OK)
 	{
-		FTDI_Error((char *)"FT_SetRts", status);
+		FTDI_Error("FT_SetRts", status);
 		return true;
 	}
 
-	//for usb-3012 pull DTR high to take AMBE3003 out of reset.
-	//for other devices noting is connected to DTR so it is a dont care
-	status = FT_ClrDtr(ftHandle);
-	if (status != FT_OK)
+	if (std::string::npos == description.find("DF2ET"))
 	{
-		FTDI_Error((char *)"FT_ClrDtr", status);
-		return true;
+		//for usb-3012 pull DTR high to take AMBE3003 out of reset.
+		//for other devices noting is connected to DTR so it is a dont care
+		status = FT_ClrDtr(ftHandle);
+		if (status != FT_OK)
+		{
+			FTDI_Error("FT_ClrDtr", status);
+			return true;
+		}
+	}
+	else
+	{
+		// for DF2ET-3003 interface pull DTR low to take AMBE3003 out of reset.
+		status = FT_SetDtr(ftHandle);
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		if (FT_OK != status) {
+			FTDI_Error("FT_SetDtr", status);
+			return false;
+		}
 	}
 
 	status = FT_SetBaudRate(ftHandle, baudrate );
 	if (status != FT_OK)
 	{
-		FTDI_Error((char *)"FT_SetBaudRate", status);
+		FTDI_Error("FT_SetBaudRate", status);
 		return false;
 	}
 
 	status = FT_SetLatencyTimer(ftHandle, 4);
 	if (status != FT_OK)
 	{
-		FTDI_Error((char *)"FT_SetLatencyTimer", status);
+		FTDI_Error("FT_SetLatencyTimer", status);
 		return true;
 	}
 
 	status = FT_SetUSBParameters(ftHandle, USB3XXX_MAXPACKETSIZE, 0);
 	if (status != FT_OK){
-		FTDI_Error((char *)"FT_SetUSBParameters", status);
+		FTDI_Error("FT_SetUSBParameters", status);
 		return true;
 	}
 
 	status = FT_SetTimeouts(ftHandle, 200, 200 );
 	if (status != FT_OK)
 	{
-		FTDI_Error((char *)"FT_SetTimeouts", status);
+		FTDI_Error("FT_SetTimeouts", status);
 		return false;
 	}
 
@@ -544,8 +557,11 @@ void CDV3003::ReadDevice()
 {
 	while (keep_running)
 	{
+		CTimer timer;
 		dv3003_packet p;
-		if (! GetResponse(p))
+		if (GetResponse(p))
+			std::cout << "Timer is " << timer.time() * 1000.0 << " ms" << std::endl;
+		else
 		{
 			unsigned int channel = p.field_id - PKT_CHANNEL0;
 			auto packet = waiting_packet[channel].pop();
