@@ -467,6 +467,8 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 			FTDI_Error("Reading packet start byte", status);
 			return true;
 		}
+		if (0 == bytes_read)
+			return true;	// nothing to read
 		if (packet.start_byte == PKT_HEADER)
 			break;
 	}
@@ -557,11 +559,8 @@ void CDV3003::ReadDevice()
 {
 	while (keep_running)
 	{
-		CTimer timer;
 		dv3003_packet p;
-		if (GetResponse(p))
-			std::cout << "Timer is " << timer.time() * 1000.0 << " ms" << std::endl;
-		else
+		if (! GetResponse(p))
 		{
 			unsigned int channel = p.field_id - PKT_CHANNEL0;
 			auto packet = waiting_packet[channel].pop();
