@@ -512,7 +512,7 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 
 void CDV3003::FeedDevice()
 {
-	pthread_setname_np(gettid(), "FeedDevice");
+	std::cout << "FeedDevice tid=" << gettid() << " get_id=" << std::this_thread::get_id() << std::endl;
 	const std::string modules(TRANSCODED_MODULES);
 	const auto n = modules.size();
 	while (keep_running)
@@ -558,7 +558,7 @@ void CDV3003::FeedDevice()
 
 void CDV3003::ReadDevice()
 {
-	pthread_setname_np(gettid(), "ReadDevice");
+	std::cout << "ReadDevice tid=" << gettid() << " get_id=" << std::this_thread::get_id() << std::endl;
 	while (keep_running)
 	{
 		dv3003_packet p;
