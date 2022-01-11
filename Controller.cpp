@@ -292,25 +292,22 @@ void CController::ProcessC2Thread()
 	while (keep_running)
 	{
 		auto packet = codec2_queue.pop();
-		if (packet)
+
+		switch (packet->GetCodecIn())
 		{
-			switch (packet->GetCodecIn())
-			{
-				case ECodecType::c2_1600:
-				case ECodecType::c2_3200:
-					// this is an original M17 packet, so decode it to audio
-					// Codec2toAudio will send it on for AMBE processing
-					Codec2toAudio(packet);
-					break;
-				case ECodecType::dstar:
-				case ECodecType::dmr:
-					// codec_in was AMBE, so we need to calculate the the M17 data
-					AudiotoCodec2(packet);
-					break;
-			}
+			case ECodecType::c2_1600:
+			case ECodecType::c2_3200:
+				// this is an original M17 packet, so decode it to audio
+				// Codec2toAudio will send it on for AMBE processing
+				Codec2toAudio(packet);
+				break;
+
+			case ECodecType::dstar:
+			case ECodecType::dmr:
+				// codec_in was AMBE, so we need to calculate the the M17 data
+				AudiotoCodec2(packet);
+				break;
 		}
-		else
-			std::this_thread::sleep_for(std::chrono::milliseconds(5));
 	}
 }
 
