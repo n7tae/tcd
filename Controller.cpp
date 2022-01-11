@@ -174,7 +174,6 @@ bool CController::InitDevices()
 // based on packet's codec_in.
 void CController::ReadReflectorThread()
 {
-	std::cout << "ReadReflector tid=" << gettid() << " get_id=" << std::this_thread::get_id() << std::endl;
 	while (keep_running)
 	{
 		STCPacket tcpack;
@@ -290,7 +289,6 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 
 void CController::ProcessC2Thread()
 {
-	std::cout << "ProcessC2 tid=" << gettid() << " get_id=" << std::this_thread::get_id() << std::endl;
 	while (keep_running)
 	{
 		auto packet = codec2_queue.pop();

@@ -512,7 +512,6 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 
 void CDV3003::FeedDevice()
 {
-	std::cout << "FeedDevice tid=" << gettid() << " get_id=" << std::this_thread::get_id() << std::endl;
 	const std::string modules(TRANSCODED_MODULES);
 	const auto n = modules.size();
 	while (keep_running)
@@ -558,9 +557,23 @@ void CDV3003::FeedDevice()
 
 void CDV3003::ReadDevice()
 {
-	std::cout << "ReadDevice tid=" << gettid() << " get_id=" << std::this_thread::get_id() << std::endl;
 	while (keep_running)
 	{
+		// wait for something to read...
+		DWORD n = 0;
+		while (0 == n)
+		{
+			auto status = FT_GetQueueStatus(ftHandle, &n);
+			if (FT_OK != status)
+			{
+				FTDI_Error("FT_GetQueueStatus", status);
+				break;
+			}
+
+			if (0 == n)
+				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+		}
+
 		dv3003_packet p;
 		if (! GetResponse(p))
 		{
