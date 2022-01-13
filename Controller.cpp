@@ -52,7 +52,7 @@ void CController::Stop()
 
 	reader.Close();
 	dstar_device.CloseDevice();
-	dmr_device.CloseDevice();
+	dmrsf_device.CloseDevice();
 }
 
 bool CController::CheckTCModules() const
@@ -157,13 +157,13 @@ bool CController::InitDevices()
 	{
 		dstar_device.OpenDevice(deviceset.front().first, deviceset.front().second, 921600);
 		deviceset.pop_front();
-		dmr_device.OpenDevice(deviceset.front().first, deviceset.front().second, 921600);
+		dmrsf_device.OpenDevice(deviceset.front().first, deviceset.front().second, 921600);
 		deviceset.pop_front();
 	}
 
 	// and start them up!
 	dstar_device.Start();
-	dmr_device.Start();
+	dmrsf_device.Start();
 
 	deviceset.clear();
 
@@ -190,7 +190,7 @@ void CController::ReadReflectorThread()
 				dstar_device.AddPacket(packet);
 				break;
 			case ECodecType::dmr:
-				dmr_device.AddPacket(packet);
+				dmrsf_device.AddPacket(packet);
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
@@ -284,7 +284,7 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 	}
 	// the only thing left is to encode the two ambe, so push the packet onto both AMBE queues
 	dstar_device.AddPacket(packet);
-	dmr_device.AddPacket(packet);
+	dmrsf_device.AddPacket(packet);
 }
 
 void CController::ProcessC2Thread()
@@ -329,7 +329,7 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		// codec_in is dstar, the audio has just completed, so now calc the M17 and DMR
 		codec2_queue.push(packet);
-		dmr_device.AddPacket(packet);
+		dmrsf_device.AddPacket(packet);
 	}
 	else if (packet->AllCodecsAreSet())
 	{

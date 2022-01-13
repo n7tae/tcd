@@ -8,9 +8,9 @@ This will build a new kind of hybrid transcoder that uses AMBE DVSI-based hardwa
 
 This is the only transcoder that will work with the [URF reflector](https://github.com/n7tae/urfd).
 
-This software is loosely based on LX3JL's **ambed**, but is easily different enough to be considered an entirely original work. Here are some major differences:
+This software is loosely based on LX3JL's **ambed**, but is easily different enough to be considered an entirely original work. Here are some major differences with ambed:
 
-- tcd mixes both hardware-based and software-based vocoders, providing a bridge between the closed source vocoders used in DStar, DMR and YSF and open-source vocoders used in M17.
+- tcd uses both hardware-based and software-based vocoders, providing a bridge between the closed source vocoders used in DStar, DMR and YSF and open-source vocoders used in M17.
 - **UNIX Sockets** are used to communicate between the reflector and this transcoder. This greatly simplifies the code and *significantly* improves transcoding performance.
 - AMBE vocoders are dedicated to an assigned reflector channel. This prevents overloading when processing multiple voice streams and provides the best possible performance for the reflector's clients.
 

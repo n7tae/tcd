@@ -201,7 +201,7 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 		}
 	}
 
-	status = FT_SetBaudRate(ftHandle, baudrate );
+	status = FT_SetBaudRate(ftHandle, baudrate);
 	if (status != FT_OK)
 	{
 		FTDI_Error("FT_SetBaudRate", status);
@@ -221,7 +221,7 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 		return true;
 	}
 
-	status = FT_SetTimeouts(ftHandle, 200, 200 );
+	status = FT_SetTimeouts(ftHandle, 200, 200);
 	if (status != FT_OK)
 	{
 		FTDI_Error("FT_SetTimeouts", status);
@@ -229,7 +229,7 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 	}
 
 	description.assign(desc);
-	description.append(": ");
+	description.append(":");
 	description.append(serialno);
 
 	std::cout << "Opened " << description << std::endl;
@@ -610,9 +610,9 @@ void CDV3003::ReadDevice()
 			}
 			else
 			{
-				Controller.dmr_mux.lock();
+				Controller.dmrsf_mux.lock();
 				Controller.RouteDmrPacket(packet);
-				Controller.dmr_mux.unlock();
+				Controller.dmrsf_mux.unlock();
 			}
 		}
 	}
