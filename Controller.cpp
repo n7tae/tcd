@@ -52,7 +52,7 @@ void CController::Stop()
 
 	reader.Close();
 	dstar_device.CloseDevice();
-	dmr_device.CloseDevice();
+	dmrst_device.CloseDevice();
 }
 
 bool CController::CheckTCModules() const
@@ -152,18 +152,31 @@ bool CController::InitDevices()
 		return true;
 	}
 
+	const auto desc(deviceset.front().second);
+	if (deviceset.back().second.compare(desc))
+	{
+		std::cerr << "Both devices have to be the same type: " << desc << " != " << deviceset.back().second << std::endl;
+		return true;
+	}
+
+	Edvtype dvtype = Edvtype::dv3003;
+	if (0==desc.compare("ThumbDV") || 0==desc.compare("DVstick-33") || 0==desc.compare("USB-3000"))
+	dvtype = Edvtype::dv3000;
+
 	//initialize each device
 	while (! deviceset.empty())
 	{
-		dstar_device.OpenDevice(deviceset.front().first, deviceset.front().second, 921600);
+		if (dstar_device.OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+			return true;
 		deviceset.pop_front();
-		dmr_device.OpenDevice(deviceset.front().first, deviceset.front().second, 921600);
+		if (dmrst_device.OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+			return true;
 		deviceset.pop_front();
 	}
 
 	// and start them up!
 	dstar_device.Start();
-	dmr_device.Start();
+	dmrst_device.Start();
 
 	deviceset.clear();
 
@@ -190,7 +203,7 @@ void CController::ReadReflectorThread()
 				dstar_device.AddPacket(packet);
 				break;
 			case ECodecType::dmr:
-				dmr_device.AddPacket(packet);
+				dmrst_device.AddPacket(packet);
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
@@ -284,7 +297,7 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 	}
 	// the only thing left is to encode the two ambe, so push the packet onto both AMBE queues
 	dstar_device.AddPacket(packet);
-	dmr_device.AddPacket(packet);
+	dmrst_device.AddPacket(packet);
 }
 
 void CController::ProcessC2Thread()
@@ -329,7 +342,7 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		// codec_in is dstar, the audio has just completed, so now calc the M17 and DMR
 		codec2_queue.push(packet);
-		dmr_device.AddPacket(packet);
+		dmrst_device.AddPacket(packet);
 	}
 	else if (packet->AllCodecsAreSet())
 	{

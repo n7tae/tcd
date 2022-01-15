@@ -7,7 +7,7 @@
  */
 
 // tcd - a hybid transcoder using DVSI hardware and Codec2 software
-// Copyright © 2021 Thomas A. Early N7TAE
+// Copyright © 2022 Thomas A. Early N7TAE
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
 
 extern CController Controller;
 
-CDV3003::CDV3003(Encoding t) : type(t), ftHandle(nullptr), buffer_depth(0)
+CDV3003::CDV3003(Encoding t) : type(t), ftHandle(nullptr), buffer_depth(0), keep_running(true)
 {
 }
 
@@ -145,7 +145,7 @@ std::string CDV3003::GetDescription() const
 	return description;
 }
 
-bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, int baudrate)
+bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype)
 {
 	auto status = FT_OpenEx((PVOID)serialno.c_str(), FT_OPEN_BY_SERIAL_NUMBER, &ftHandle);
 	if (FT_OK != status)
@@ -201,7 +201,7 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 		}
 	}
 
-	status = FT_SetBaudRate(ftHandle, baudrate );
+	status = FT_SetBaudRate(ftHandle, (Edvtype::dv3000 == dvtype) ? 460800 : 921600);
 	if (status != FT_OK)
 	{
 		FTDI_Error("FT_SetBaudRate", status);
@@ -237,7 +237,8 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 	if (InitDV3003())
 		return true;
 
-	for (uint8_t ch=PKT_CHANNEL0; ch<=PKT_CHANNEL2; ch++)
+	const uint8_t limit = (Edvtype::dv3000 == dvtype) ? PKT_CHANNEL0 : PKT_CHANNEL2;
+	for (uint8_t ch=PKT_CHANNEL0; ch<=limit; ch++)
 	{
 		if (ConfigureVocoder(ch, type))
 			return true;
@@ -383,7 +384,6 @@ bool CDV3003::InitDV3003()
 
 void CDV3003::Start()
 {
-	keep_running = true;
 	feedFuture = std::async(std::launch::async, &CDV3003::FeedDevice, this);
 	readFuture = std::async(std::launch::async, &CDV3003::ReadDevice, this);
 }
@@ -609,9 +609,9 @@ void CDV3003::ReadDevice()
 			}
 			else
 			{
-				Controller.dmr_mux.lock();
+				Controller.dmrst_mux.lock();
 				Controller.RouteDmrPacket(packet);
-				Controller.dmr_mux.unlock();
+				Controller.dmrst_mux.unlock();
 			}
 		}
 	}

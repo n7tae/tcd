@@ -1,7 +1,7 @@
 #pragma once
 
 // tcd - a hybid transcoder using DVSI hardware and Codec2 software
-// Copyright © 2021 Thomas A. Early N7TAE
+// Copyright © 2022 Thomas A. Early N7TAE
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -98,13 +98,14 @@ struct dv3003_packet {
 
 using SDV3003_Packet = struct dv3003_packet;
 
-enum class Encoding { dstar, dmr };
+enum class Encoding { dstar, dmrsf };
+enum class Edvtype { dv3000, dv3003 };
 
 class CDV3003 {
 public:
 	CDV3003(Encoding t);
 	~CDV3003();
-	bool OpenDevice(const std::string &serialno, const std::string &desc, int baudrate);
+	bool OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype);
 	void Start();
 	void CloseDevice();
 	std::string GetDescription() const;

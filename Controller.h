@@ -29,12 +29,10 @@
 #include "UnixDgramSocket.h"
 #include "configure.h"
 
-enum class EAmbeType { dstar, dmr };
-
 class CController
 {
 public:
-	std::mutex dstar_mux, dmr_mux;
+	std::mutex dstar_mux, dmrst_mux;
 
 	CController();
 	bool Start();
@@ -52,7 +50,7 @@ protected:
 	CUnixDgramWriter writer;
 	std::unordered_map<char, std::unique_ptr<CCodec2>> c2_16, c2_32;
 	CDV3003 dstar_device{Encoding::dstar};
-	CDV3003 dmr_device{Encoding::dmr};
+	CDV3003 dmrst_device{Encoding::dmrsf};
 
 	CPacketQueue codec2_queue;
 	std::mutex send_mux;
