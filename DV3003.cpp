@@ -201,7 +201,7 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 		}
 	}
 
-	status = FT_SetBaudRate(ftHandle, baudrate);
+	status = FT_SetBaudRate(ftHandle, baudrate );
 	if (status != FT_OK)
 	{
 		FTDI_Error("FT_SetBaudRate", status);
@@ -221,7 +221,7 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 		return true;
 	}
 
-	status = FT_SetTimeouts(ftHandle, 200, 200);
+	status = FT_SetTimeouts(ftHandle, 200, 200 );
 	if (status != FT_OK)
 	{
 		FTDI_Error("FT_SetTimeouts", status);
@@ -229,7 +229,7 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, i
 	}
 
 	description.assign(desc);
-	description.append(":");
+	description.append(": ");
 	description.append(serialno);
 
 	std::cout << "Opened " << description << std::endl;
@@ -445,7 +445,7 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 	if ((ntohs(responsePacket.header.payload_length) != 16) || (responsePacket.field_id != pkt_ch) || (0 != memcmp(responsePacket.payload.ctrl.data.resp, resp, sizeof(resp))))
 	{
 		std::cerr << "Config response packet failed" << std::endl;
-		dump("Configuration Response Packet:", &responsePacket, sizeof(responsePacket));
+		dump("Configuration Response Packet:", &responsePacket, packet_size(responsePacket));
 		return true;
 	};
 
@@ -467,8 +467,7 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
 			FTDI_Error("Reading packet start byte", status);
 			return true;
 		}
-		if (0 == bytes_read)
-			return true;	// nothing to read
+
 		if (packet.start_byte == PKT_HEADER)
 			break;
 	}
@@ -610,9 +609,9 @@ void CDV3003::ReadDevice()
 			}
 			else
 			{
-				Controller.dmrsf_mux.lock();
+				Controller.dmr_mux.lock();
 				Controller.RouteDmrPacket(packet);
-				Controller.dmrsf_mux.unlock();
+				Controller.dmr_mux.unlock();
 			}
 		}
 	}

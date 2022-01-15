@@ -98,7 +98,7 @@ struct dv3003_packet {
 
 using SDV3003_Packet = struct dv3003_packet;
 
-enum class Encoding { dstar, dmrsf };
+enum class Encoding { dstar, dmr };
 
 class CDV3003 {
 public:
