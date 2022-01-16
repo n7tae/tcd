@@ -18,6 +18,8 @@ This software is loosely based on LX3JL's **ambed**, but is easily different eno
 
 Currently, only two AMBE devices are supported. You cannot use a 3003 and a 3000 device together. If you use a pair of 3000 devices, only 460800-baud deivces are supported. When using a pair of 3000 devices, you can only transcode a single channel. If you use a pair of 3003 devices, you can specify up to three transcoded channels. AMBE devices based on LX3JL's [USB-3006 open source design](https://github.com/LX3JL/usb-3006) (sold by Northwest Digital and others) contain a pair of 3003 devices and are ideally suited for *tcd*.
 
+To be clear, a pair of 3000-based devices will support only a single transcoded reflector channel, while a pair of 3003-based devices will support up to three transcoded reflector channels.
+
 Currently, this program must be run locally with its paired URF reflector. Remote transcoding is not yet possible.
 
 Only systemd-based operating systems are supported. Debian or Ubuntu is recommended. If you want to install this on a non-systemd based OS, you are on your own. Also, by default, tcd is built without gdb support.

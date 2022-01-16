@@ -196,7 +196,8 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 		}
 	}
 
-	status = FT_SetBaudRate(ftHandle, (Edvtype::dv3000 == dvtype) ? 460800 : 921600);
+	ULONG baudrate = (Edvtype::dv3000 == dvtype) ? 460800 : 921600;
+	status = FT_SetBaudRate(ftHandle, baudrate);
 	if (status != FT_OK)
 	{
 		FTDI_Error("FT_SetBaudRate", status);
@@ -230,7 +231,7 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 	description.append("-");
 	description.append(serialno);
 
-	std::cout << "Opened " << description << std::endl;
+	std::cout << "Opened " << description << " at " << baudrate << " baud with a " << maxsize << "byte max transfer size" << std::endl;
 
 	if (InitDevice())
 		return true;
