@@ -57,7 +57,7 @@
 #define packet_size(a) int(4 + ntohs((a).header.payload_length))
 
 #pragma pack(push, 1)
-struct dv3003_packet {
+struct dv_packet_tag {
 	uint8_t start_byte;
 	struct {
 		uint16_t payload_length;
@@ -96,15 +96,15 @@ struct dv3003_packet {
 };
 #pragma pack(pop)
 
-using SDV3003_Packet = struct dv3003_packet;
+using SDV_Packet = struct dv_packet_tag;
 
 enum class Encoding { dstar, dmrsf };
 enum class Edvtype { dv3000, dv3003 };
 
-class CDV3003 {
+class CDVDevice {
 public:
-	CDV3003(Encoding t);
-	~CDV3003();
+	CDVDevice(Encoding t);
+	~CDVDevice();
 	bool OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype);
 	void Start();
 	void CloseDevice();
@@ -127,9 +127,9 @@ private:
 	void ReadDevice();
 	bool InitDV3003();
 	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
-	bool checkResponse(SDV3003_Packet &responsePacket, uint8_t response) const;
+	bool checkResponse(SDV_Packet &responsePacket, uint8_t response) const;
 	bool SendAudio(const uint8_t channel, const int16_t *audio) const;
 	bool SendData(const uint8_t channel, const uint8_t *data) const;
-	bool GetResponse(SDV3003_Packet &packet);
+	bool GetResponse(SDV_Packet &packet);
 	void dump(const char *title, void *data, int length) const;
 };

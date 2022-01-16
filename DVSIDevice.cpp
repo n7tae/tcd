@@ -32,22 +32,22 @@
 #include <cerrno>
 #include <thread>
 
-#include "DV3003.h"
+#include "DVSIDevice.h"
 #include "configure.h"
 #include "Controller.h"
 
 extern CController Controller;
 
-CDV3003::CDV3003(Encoding t) : type(t), ftHandle(nullptr), buffer_depth(0), keep_running(true)
+CDVDevice::CDVDevice(Encoding t) : type(t), ftHandle(nullptr), buffer_depth(0), keep_running(true)
 {
 }
 
-CDV3003::~CDV3003()
+CDVDevice::~CDVDevice()
 {
 	CloseDevice();
 }
 
-void CDV3003::CloseDevice()
+void CDVDevice::CloseDevice()
 {
 	keep_running = false;
 	if (ftHandle)
@@ -63,7 +63,7 @@ void CDV3003::CloseDevice()
 		readFuture.get();
 }
 
-void CDV3003::FTDI_Error(const char *where, FT_STATUS status) const
+void CDVDevice::FTDI_Error(const char *where, FT_STATUS status) const
 {
 	std::cerr << "FTDI ERROR: " << where << ": ";
 	switch (status)
@@ -132,7 +132,7 @@ void CDV3003::FTDI_Error(const char *where, FT_STATUS status) const
 	std::cerr << std::endl;
 }
 
-bool CDV3003::checkResponse(SDV3003_Packet &p, uint8_t response) const
+bool CDVDevice::checkResponse(SDV_Packet &p, uint8_t response) const
 {
 	if(p.start_byte != PKT_HEADER || p.header.packet_type != PKT_CONTROL || p.field_id != response)
 		return true;
@@ -140,12 +140,12 @@ bool CDV3003::checkResponse(SDV3003_Packet &p, uint8_t response) const
 	return false;
 }
 
-std::string CDV3003::GetDescription() const
+std::string CDVDevice::GetDescription() const
 {
 	return description;
 }
 
-bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype)
+bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype)
 {
 	auto status = FT_OpenEx((PVOID)serialno.c_str(), FT_OPEN_BY_SERIAL_NUMBER, &ftHandle);
 	if (FT_OK != status)
@@ -215,7 +215,7 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, E
 		return true;
 	}
 
-	ULONG maxsize = sizeof(SDV3003_Packet);
+	ULONG maxsize = sizeof(SDV_Packet);
 	maxsize = (maxsize % 64) ? maxsize - (maxsize % 64U) + 64U : maxsize;
 	status = FT_SetUSBParameters(ftHandle, maxsize, 0);
 	if (status != FT_OK){
@@ -249,9 +249,9 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, E
 	return false;
 }
 
-bool CDV3003::InitDV3003()
+bool CDVDevice::InitDV3003()
 {
-	SDV3003_Packet responsePacket, ctrlPacket;
+	SDV_Packet responsePacket, ctrlPacket;
 
 	// ********** soft reset *************
     ctrlPacket.start_byte = PKT_HEADER;
@@ -385,15 +385,15 @@ bool CDV3003::InitDV3003()
 	return false;
 }
 
-void CDV3003::Start()
+void CDVDevice::Start()
 {
-	feedFuture = std::async(std::launch::async, &CDV3003::FeedDevice, this);
-	readFuture = std::async(std::launch::async, &CDV3003::ReadDevice, this);
+	feedFuture = std::async(std::launch::async, &CDVDevice::FeedDevice, this);
+	readFuture = std::async(std::launch::async, &CDVDevice::ReadDevice, this);
 }
 
-bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
+bool CDVDevice::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 {
-	SDV3003_Packet controlPacket, responsePacket;
+	SDV_Packet controlPacket, responsePacket;
 	const uint8_t ecmode[] { PKT_ECMODE, 0x0, 0x0 };
 	const uint8_t dcmode[] { PKT_DCMODE, 0x0, 0x0 };
 	const uint8_t  dstar[] { PKT_RATEP, 0x01U, 0x30U, 0x07U, 0x63U, 0x40U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x48U };
@@ -406,7 +406,7 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 
 
 	controlPacket.start_byte = PKT_HEADER;
-	controlPacket.header.payload_length = htons(1 + sizeof(SDV3003_Packet::payload.codec));
+	controlPacket.header.payload_length = htons(1 + sizeof(SDV_Packet::payload.codec));
 	controlPacket.header.packet_type = PKT_CONTROL;
 	controlPacket.field_id = pkt_ch;
 	memcpy(controlPacket.payload.codec.ecmode, ecmode, 3);
@@ -457,7 +457,7 @@ bool CDV3003::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 	return false;
 }
 
-bool CDV3003::GetResponse(SDV3003_Packet &packet)
+bool CDVDevice::GetResponse(SDV_Packet &packet)
 {
 	FT_STATUS status;
 	DWORD bytes_read;
@@ -512,7 +512,7 @@ bool CDV3003::GetResponse(SDV3003_Packet &packet)
     return false;
 }
 
-void CDV3003::FeedDevice()
+void CDVDevice::FeedDevice()
 {
 	const std::string modules(TRANSCODED_MODULES);
 	const auto n = modules.size();
@@ -557,7 +557,7 @@ void CDV3003::FeedDevice()
 	}
 }
 
-void CDV3003::ReadDevice()
+void CDVDevice::ReadDevice()
 {
 	while (keep_running)
 	{
@@ -587,7 +587,7 @@ void CDV3003::ReadDevice()
 			}
 		}
 
-		dv3003_packet p;
+		SDV_Packet p;
 		if (! GetResponse(p))
 		{
 			unsigned int channel = p.field_id - PKT_CHANNEL0;
@@ -631,15 +631,15 @@ void CDV3003::ReadDevice()
 	}
 }
 
-void CDV3003::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
+void CDVDevice::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
 	input_queue.push(packet);
 }
 
-bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
+bool CDVDevice::SendAudio(const uint8_t channel, const int16_t *audio) const
 {
 	// Create Audio packet based on input int8_ts
-	SDV3003_Packet p;
+	SDV_Packet p;
 	p.start_byte = PKT_HEADER;
 	const uint16_t len = 323;
 	p.header.payload_length = htons(len);
@@ -668,10 +668,10 @@ bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
 	return false;
 }
 
-bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
+bool CDVDevice::SendData(const uint8_t channel, const uint8_t *data) const
 {
 	// Create data packet
-	SDV3003_Packet p;
+	SDV_Packet p;
 	p.start_byte = PKT_HEADER;
 	p.header.payload_length = htons(12);
 	p.header.packet_type = PKT_CHANNEL;
@@ -698,7 +698,7 @@ bool CDV3003::SendData(const uint8_t channel, const uint8_t *data) const
 	return false;
 }
 
-void CDV3003::dump(const char *title, void *pointer, int length) const
+void CDVDevice::dump(const char *title, void *pointer, int length) const
 {
 	const uint8_t *data = (const uint8_t *)pointer;
 

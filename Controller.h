@@ -25,7 +25,7 @@
 #include <utility>
 
 #include "codec2.h"
-#include "DV3003.h"
+#include "DVSIDevice.h"
 #include "UnixDgramSocket.h"
 #include "configure.h"
 
@@ -49,8 +49,8 @@ protected:
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
 	std::unordered_map<char, std::unique_ptr<CCodec2>> c2_16, c2_32;
-	CDV3003 dstar_device{Encoding::dstar};
-	CDV3003 dmrst_device{Encoding::dmrsf};
+	CDVDevice dstar_device{Encoding::dstar};
+	CDVDevice dmrst_device{Encoding::dmrsf};
 
 	CPacketQueue codec2_queue;
 	std::mutex send_mux;
