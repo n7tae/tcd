@@ -125,7 +125,7 @@ private:
 	void FTDI_Error(const char *where, FT_STATUS status) const;
 	void FeedDevice();
 	void ReadDevice();
-	bool InitDV3003();
+	bool InitDevice();
 	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
 	bool checkResponse(SDV_Packet &responsePacket, uint8_t response) const;
 	bool SendAudio(const uint8_t channel, const int16_t *audio) const;

@@ -50,7 +50,7 @@ protected:
 	CUnixDgramWriter writer;
 	std::unordered_map<char, std::unique_ptr<CCodec2>> c2_16, c2_32;
 	CDVDevice dstar_device{Encoding::dstar};
-	CDVDevice dmrst_device{Encoding::dmrsf};
+	CDVDevice dmrsf_device{Encoding::dmrsf};
 
 	CPacketQueue codec2_queue;
 	std::mutex send_mux;

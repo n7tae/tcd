@@ -223,7 +223,7 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 		return true;
 	}
 
-	// No timeouts! FT_Read blocks!
+	// No timeouts! we want blocking FT_Read
 	// status = FT_SetTimeouts(ftHandle, 200, 200 );
 	// if (status != FT_OK)
 	// {
@@ -237,7 +237,7 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 
 	std::cout << "Opened " << description << std::endl;
 
-	if (InitDV3003())
+	if (InitDevice())
 		return true;
 
 	const uint8_t limit = (Edvtype::dv3000 == dvtype) ? PKT_CHANNEL0 : PKT_CHANNEL2;
@@ -249,7 +249,7 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 	return false;
 }
 
-bool CDVDevice::InitDV3003()
+bool CDVDevice::InitDevice()
 {
 	SDV_Packet responsePacket, ctrlPacket;
 
