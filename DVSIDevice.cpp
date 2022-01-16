@@ -219,7 +219,7 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 		return true;
 	}
 
-	// No timeouts! we want blocking FT_Read
+	// NO TIMEOUTS! We are using blocking I/O!!!
 	// status = FT_SetTimeouts(ftHandle, 200, 200 );
 	// if (status != FT_OK)
 	// {
@@ -448,7 +448,7 @@ bool CDVDevice::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 		return true;
 	};
 
-	std::cout << description << " channel " << (unsigned int)(pkt_ch - PKT_CHANNEL0) << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR") << std::endl;
+	std::cout << description << " channel " << (unsigned int)(pkt_ch - PKT_CHANNEL0) << " is now configured for " << ((Encoding::dstar == type) ? "D-Star" : "DMR/YSF") << std::endl;
 
 	return false;
 }
@@ -609,25 +609,19 @@ void CDVDevice::ReadDevice()
 		DWORD RxBytes = 0;
 		while (0 == RxBytes)
 		{
-			EVENT_HANDLE eh;
-			pthread_mutex_init(&eh.eMutex, NULL);
-			pthread_cond_init(&eh.eCondVar, NULL);
-			DWORD EventMask = FT_EVENT_RXCHAR;
-			auto status = FT_SetEventNotification(ftHandle, EventMask, &eh);
+			auto status = FT_GetQueueStatus(ftHandle, &RxBytes);
 			if (FT_OK != status)
 			{
-				FTDI_Error("Setting Event Notification", status);
+				FTDI_Error("FT_GetQueueStatus", status);
 			}
 
-			pthread_mutex_lock(&eh.eMutex);
-			pthread_cond_wait(&eh.eCondVar, &eh.eMutex);
-			pthread_mutex_unlock(&eh.eMutex);
-
-			DWORD EventDWord, TxBytes, Status;
-			status = FT_GetStatus(ftHandle, &RxBytes, &TxBytes, &EventDWord);
-			if (FT_OK != status)
+			if (RxBytes)
 			{
-				FTDI_Error("Getting Event Status", status);
+				break;
+			}
+			else
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(2));
 			}
 		}
 

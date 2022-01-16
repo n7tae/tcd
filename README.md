@@ -20,7 +20,7 @@ Currently, only two AMBE devices are supported. You cannot use a 3003 and a 3000
 
 To be clear, a pair of 3000-based devices will support only a single transcoded reflector channel, while a pair of 3003-based devices will support up to three transcoded reflector channels.
 
-Currently, this program must be run locally with its paired URF reflector. Remote transcoding is not yet possible.
+Currently, this program must be run locally with its paired URF reflector. Remote transcoding is not yet supported.
 
 Only systemd-based operating systems are supported. Debian or Ubuntu is recommended. If you want to install this on a non-systemd based OS, you are on your own. Also, by default, tcd is built without gdb support.
 
