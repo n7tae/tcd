@@ -25,7 +25,8 @@
 #include <utility>
 
 #include "codec2.h"
-#include "DVSIDevice.h"
+#include "DV3000.h"
+#include "DV3003.h"
 #include "UnixDgramSocket.h"
 #include "configure.h"
 
@@ -49,14 +50,13 @@ protected:
 	CUnixDgramReader reader;
 	CUnixDgramWriter writer;
 	std::unordered_map<char, std::unique_ptr<CCodec2>> c2_16, c2_32;
-	CDVDevice dstar_device{Encoding::dstar};
-	CDVDevice dmrsf_device{Encoding::dmrsf};
+	std::unique_ptr<CDVDevice> dstar_device, dmrsf_device;
 
 	CPacketQueue codec2_queue;
 	std::mutex send_mux;
 
 	bool DiscoverFtdiDevices(std::list<std::pair<std::string, std::string>> &found);
-	bool InitDevices();
+	bool InitVocoders();
 	// processing threads
 	void ReadReflectorThread();
 	void ProcessC2Thread();

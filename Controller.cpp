@@ -25,13 +25,11 @@
 #include "TranscoderPacket.h"
 #include "Controller.h"
 
-CController::CController() : keep_running(true)
-{
-}
+CController::CController() : keep_running(true) {}
 
 bool CController::Start()
 {
-	if (InitDevices() || reader.Open(REF2TC))
+	if (InitVocoders() || reader.Open(REF2TC))
 	{
 		keep_running = false;
 		return true;
@@ -51,8 +49,10 @@ void CController::Stop()
 		c2Future.get();
 
 	reader.Close();
-	dstar_device.CloseDevice();
-	dmrsf_device.CloseDevice();
+	dstar_device->CloseDevice();
+	dmrsf_device->CloseDevice();
+	dstar_device.reset();
+	dmrsf_device.reset();
 }
 
 bool CController::CheckTCModules() const
@@ -110,7 +110,7 @@ bool CController::DiscoverFtdiDevices(std::list<std::pair<std::string, std::stri
 
 		for ( int i = 0; i < iNbDevices; i++ )
 		{
-			std::cout << "Found " << list[i].Description << ", SerialNo=" << list[i].SerialNumber << std::endl;
+			std::cout << "Found " << list[i].Description << ", SN=" << list[i].SerialNumber << std::endl;
 			found.emplace_back(std::pair<std::string, std::string>(list[i].SerialNumber, list[i].Description));
 		}
 
@@ -122,7 +122,7 @@ bool CController::DiscoverFtdiDevices(std::list<std::pair<std::string, std::stri
 	return false;
 }
 
-bool CController::InitDevices()
+bool CController::InitVocoders()
 {
 	if (CheckTCModules())
 		return true;
@@ -172,17 +172,35 @@ bool CController::InitDevices()
 	//initialize each device
 	while (! deviceset.empty())
 	{
-		if (dstar_device.OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+		if (Edvtype::dv3000 == dvtype)
+		{
+			dstar_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dstar));
+			dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dmrsf));
+		}
+		else
+		{
+			dstar_device = std::unique_ptr<CDVDevice>(new CDV3003(Encoding::dstar));
+			dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3003(Encoding::dmrsf));
+		}
+		if (dstar_device && dmrsf_device)
+		{
+			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+				return true;
+			deviceset.pop_front();
+			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+				return true;
+			deviceset.pop_front();
+		}
+		else
+		{
+			std::cerr << "Could not create DVSI devices!" << std::endl;
 			return true;
-		deviceset.pop_front();
-		if (dmrsf_device.OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
-			return true;
-		deviceset.pop_front();
+		}
 	}
 
 	// and start them up!
-	dstar_device.Start();
-	dmrsf_device.Start();
+	dstar_device->Start();
+	dmrsf_device->Start();
 
 	deviceset.clear();
 
@@ -206,10 +224,10 @@ void CController::ReadReflectorThread()
 			switch (packet->GetCodecIn())
 			{
 			case ECodecType::dstar:
-				dstar_device.AddPacket(packet);
+				dstar_device->AddPacket(packet);
 				break;
 			case ECodecType::dmr:
-				dmrsf_device.AddPacket(packet);
+				dmrsf_device->AddPacket(packet);
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
@@ -302,8 +320,8 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 		}
 	}
 	// the only thing left is to encode the two ambe, so push the packet onto both AMBE queues
-	dstar_device.AddPacket(packet);
-	dmrsf_device.AddPacket(packet);
+	dstar_device->AddPacket(packet);
+	dmrsf_device->AddPacket(packet);
 }
 
 void CController::ProcessC2Thread()
@@ -348,7 +366,7 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		// codec_in is dstar, the audio has just completed, so now calc the M17 and DMR
 		codec2_queue.push(packet);
-		dmrsf_device.AddPacket(packet);
+		dmrsf_device->AddPacket(packet);
 	}
 	else if (packet->AllCodecsAreSet())
 	{
@@ -363,7 +381,7 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 	if (ECodecType::dmr == packet->GetCodecIn())
 	{
 		codec2_queue.push(packet);
-		dstar_device.AddPacket(packet);
+		dstar_device->AddPacket(packet);
 	}
 	else if (packet->AllCodecsAreSet())
 	{
