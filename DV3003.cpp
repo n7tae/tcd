@@ -215,18 +215,21 @@ bool CDV3003::OpenDevice(const std::string &serialno, const std::string &desc, E
 		return true;
 	}
 
-	status = FT_SetUSBParameters(ftHandle, USB3XXX_MAXPACKETSIZE, 0);
+	ULONG maxsize = sizeof(SDV3003_Packet);
+	maxsize = (maxsize % 64) ? maxsize - (maxsize % 64U) + 64U : maxsize;
+	status = FT_SetUSBParameters(ftHandle, maxsize, 0);
 	if (status != FT_OK){
 		FTDI_Error("FT_SetUSBParameters", status);
 		return true;
 	}
 
-	status = FT_SetTimeouts(ftHandle, 200, 200 );
-	if (status != FT_OK)
-	{
-		FTDI_Error("FT_SetTimeouts", status);
-		return false;
-	}
+	// No timeouts! FT_Read blocks!
+	// status = FT_SetTimeouts(ftHandle, 200, 200 );
+	// if (status != FT_OK)
+	// {
+	// 	FTDI_Error("FT_SetTimeouts", status);
+	// 	return false;
+	// }
 
 	description.assign(desc);
 	description.append(": ");
@@ -559,18 +562,29 @@ void CDV3003::ReadDevice()
 	while (keep_running)
 	{
 		// wait for something to read...
-		DWORD n = 0;
-		while (0 == n)
+		DWORD RxBytes = 0;
+		while (0 == RxBytes)
 		{
-			auto status = FT_GetQueueStatus(ftHandle, &n);
+			EVENT_HANDLE eh;
+			pthread_mutex_init(&eh.eMutex, NULL);
+			pthread_cond_init(&eh.eCondVar, NULL);
+			DWORD EventMask = FT_EVENT_RXCHAR;
+			auto status = FT_SetEventNotification(ftHandle, EventMask, &eh);
 			if (FT_OK != status)
 			{
-				FTDI_Error("FT_GetQueueStatus", status);
-				break;
+				FTDI_Error("Setting Event Notification", status);
 			}
 
-			if (0 == n)
-				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+			pthread_mutex_lock(&eh.eMutex);
+			pthread_cond_wait(&eh.eCondVar, &eh.eMutex);
+			pthread_mutex_unlock(&eh.eMutex);
+
+			DWORD EventDWord, TxBytes, Status;
+			status = FT_GetStatus(ftHandle, &RxBytes, &TxBytes, &EventDWord);
+			if (FT_OK != status)
+			{
+				FTDI_Error("Getting Event Status", status);
+			}
 		}
 
 		dv3003_packet p;
