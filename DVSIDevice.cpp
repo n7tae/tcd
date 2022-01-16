@@ -228,10 +228,10 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 	// }
 
 	description.assign(desc);
-	description.append("-");
+	description.append(" ");
 	description.append(serialno);
 
-	std::cout << "Opened " << description << " at " << baudrate << " baud with a " << maxsize << "byte max transfer size" << std::endl;
+	std::cout << "Opened " << description << " at " << baudrate << " baud with a " << maxsize << " byte max transfer size" << std::endl;
 
 	if (InitDevice())
 		return true;
@@ -553,5 +553,124 @@ void CDVDevice::dump(const char *title, void *pointer, int length) const
 			length -= 16;
 		else
 			length = 0;
+	}
+}
+
+void CDVDevice::FeedDevice()
+{
+	const std::string modules(TRANSCODED_MODULES);
+	const auto n = modules.size();
+	while (keep_running)
+	{
+		auto packet = input_queue.pop();	// blocks until there is something to pop
+
+
+		while (keep_running)	// wait until there is room
+		{
+			if (buffer_depth < 2)
+				break;
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+		}
+
+		if (keep_running)
+		{
+			auto index = modules.find(packet->GetModule());
+			// save the packet in the vocoder's queue while the vocoder does its magic
+			if (std::string::npos == index)
+			{
+				std::cerr << "Module '" << packet->GetModule() << "' is not configured on " << description << std::endl;
+			}
+			else
+			{
+				PushWaitingPacket(index, packet);
+
+				const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
+
+				if (needs_audio)
+				{
+					SendData(index, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
+				}
+				else
+				{
+					SendAudio(index, packet->GetAudioSamples());
+				}
+				buffer_depth++;
+			}
+		}
+	}
+}
+
+void CDVDevice::ReadDevice()
+{
+	while (keep_running)
+	{
+		// wait for something to read...
+		DWORD RxBytes = 0;
+		while (0 == RxBytes)
+		{
+			EVENT_HANDLE eh;
+			pthread_mutex_init(&eh.eMutex, NULL);
+			pthread_cond_init(&eh.eCondVar, NULL);
+			DWORD EventMask = FT_EVENT_RXCHAR;
+			auto status = FT_SetEventNotification(ftHandle, EventMask, &eh);
+			if (FT_OK != status)
+			{
+				FTDI_Error("Setting Event Notification", status);
+			}
+
+			pthread_mutex_lock(&eh.eMutex);
+			pthread_cond_wait(&eh.eCondVar, &eh.eMutex);
+			pthread_mutex_unlock(&eh.eMutex);
+
+			DWORD EventDWord, TxBytes, Status;
+			status = FT_GetStatus(ftHandle, &RxBytes, &TxBytes, &EventDWord);
+			if (FT_OK != status)
+			{
+				FTDI_Error("Getting Event Status", status);
+			}
+		}
+
+		SDV_Packet p;
+		if (! GetResponse(p))
+		{
+			unsigned int channel = p.field_id - PKT_CHANNEL0;
+			auto packet = PopWaitingPacket(channel);
+			if (PKT_CHANNEL == p.header.packet_type)
+			{
+				if (12!=ntohs(p.header.payload_length) || PKT_CHAND!=p.payload.ambe.chand || 72!=p.payload.ambe.num_bits)
+					dump("Improper ambe packet:", &p, packet_size(p));
+				buffer_depth--;
+				if (Encoding::dstar == type)
+					packet->SetDStarData(p.payload.ambe.data);
+				else
+					packet->SetDMRData(p.payload.ambe.data);
+
+			}
+			else if (PKT_SPEECH == p.header.packet_type)
+			{
+				if (323!=ntohs(p.header.payload_length) || PKT_SPEECHD!=p.payload.audio.speechd || 160!=p.payload.audio.num_samples)
+					dump("Improper audio packet:", &p, packet_size(p));
+				buffer_depth--;
+				packet->SetAudioSamples(p.payload.audio.samples, true);
+			}
+			else
+			{
+				dump("ReadDevice() ERROR: Read an unexpected device packet:", &p, packet_size(p));
+				continue;
+			}
+			if (Encoding::dstar == type)	// is this a DMR or a DStar device?
+			{
+				Controller.dstar_mux.lock();
+				Controller.RouteDstPacket(packet);
+				Controller.dstar_mux.unlock();
+			}
+			else
+			{
+				Controller.dmrst_mux.lock();
+				Controller.RouteDmrPacket(packet);
+				Controller.dmrst_mux.unlock();
+			}
+		}
 	}
 }

@@ -160,8 +160,8 @@ bool CController::InitVocoders()
 	}
 
 	Edvtype dvtype = Edvtype::dv3003;
-	if (0==desc.compare("ThumbDV") || 0==desc.compare("DVstick-33") || 0==desc.compare("USB-3000"))
-	dvtype = Edvtype::dv3000;
+	if (0==desc.compare("ThumbDV") || 0==desc.compare("DVstick-30") || 0==desc.compare("USB-3000"))
+		dvtype = Edvtype::dv3000;
 
 	if (modules.size() > ((Edvtype::dv3000 == dvtype) ? 1 : 3))
 	{

@@ -26,8 +26,8 @@ public:
 	virtual ~CDV3000();
 
 protected:
-	void FeedDevice();
-	void ReadDevice();
+	void PushWaitingPacket(unsigned int channel, std::shared_ptr<CTranscoderPacket> packet);
+	std::shared_ptr<CTranscoderPacket> PopWaitingPacket(unsigned int channel);
 	bool SendAudio(const uint8_t channel, const int16_t *audio) const;
 	bool SendData(const uint8_t channel, const uint8_t *data) const;
 

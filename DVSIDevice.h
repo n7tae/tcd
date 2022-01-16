@@ -47,15 +47,18 @@ protected:
 	std::string description;
 
 	bool DiscoverFtdiDevices();
-	void FTDI_Error(const char *where, FT_STATUS status) const;
-	bool InitDevice();
 	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
 	bool checkResponse(SDV_Packet &responsePacket, uint8_t response) const;
 	bool GetResponse(SDV_Packet &packet);
+	bool InitDevice();
+	void FeedDevice();
+	void ReadDevice();
+	void FTDI_Error(const char *where, FT_STATUS status) const;
 	void dump(const char *title, void *data, int length) const;
+
 	// pure virtual methods unique to the device type
-	virtual void FeedDevice() = 0;
-	virtual void ReadDevice() = 0;
+	virtual void PushWaitingPacket(unsigned int channel, std::shared_ptr<CTranscoderPacket> packet) = 0;
+	virtual std::shared_ptr<CTranscoderPacket> PopWaitingPacket(unsigned int channel) = 0;
 	virtual bool SendAudio(const uint8_t channel, const int16_t *audio) const = 0;
 	virtual bool SendData(const uint8_t channel, const uint8_t *data) const = 0;
 };
