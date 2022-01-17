@@ -513,7 +513,7 @@ void CDVDevice::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 	input_queue.push(packet);
 }
 
-void CDVDevice::dump(const char *title, void *pointer, int length) const
+void CDVDevice::dump(const char *title, const void *pointer, int length) const
 {
 	const uint8_t *data = (const uint8_t *)pointer;
 
@@ -628,43 +628,7 @@ void CDVDevice::ReadDevice()
 		SDV_Packet p;
 		if (! GetResponse(p))
 		{
-			unsigned int channel = p.field_id - PKT_CHANNEL0;
-			auto packet = PopWaitingPacket(channel);
-			if (PKT_CHANNEL == p.header.packet_type)
-			{
-				if (12!=ntohs(p.header.payload_length) || PKT_CHAND!=p.payload.ambe.chand || 72!=p.payload.ambe.num_bits)
-					dump("Improper ambe packet:", &p, packet_size(p));
-				buffer_depth--;
-				if (Encoding::dstar == type)
-					packet->SetDStarData(p.payload.ambe.data);
-				else
-					packet->SetDMRData(p.payload.ambe.data);
-
-			}
-			else if (PKT_SPEECH == p.header.packet_type)
-			{
-				if (323!=ntohs(p.header.payload_length) || PKT_SPEECHD!=p.payload.audio.speechd || 160!=p.payload.audio.num_samples)
-					dump("Improper audio packet:", &p, packet_size(p));
-				buffer_depth--;
-				packet->SetAudioSamples(p.payload.audio.samples, true);
-			}
-			else
-			{
-				dump("ReadDevice() ERROR: Read an unexpected device packet:", &p, packet_size(p));
-				continue;
-			}
-			if (Encoding::dstar == type)	// is this a DMR or a DStar device?
-			{
-				Controller.dstar_mux.lock();
-				Controller.RouteDstPacket(packet);
-				Controller.dstar_mux.unlock();
-			}
-			else
-			{
-				Controller.dmrst_mux.lock();
-				Controller.RouteDmrPacket(packet);
-				Controller.dmrst_mux.unlock();
-			}
+			ProcessPacket(p);
 		}
 	}
 }
