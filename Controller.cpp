@@ -155,8 +155,11 @@ bool CController::InitVocoders()
 	const auto desc(deviceset.front().second);
 	if (deviceset.back().second.compare(desc))
 	{
-		std::cerr << "Both devices have to be the same type: " << desc << " != " << deviceset.back().second << std::endl;
-		return true;
+		if (desc.compare(0, 9, "USB-3006 ")) // the USB-3006 device doesn't need this check
+		{
+			std::cerr << "Both devices have to be the same type: " << desc << " != " << deviceset.back().second << std::endl;
+			return true;
+		}
 	}
 
 	Edvtype dvtype = Edvtype::dv3003;
