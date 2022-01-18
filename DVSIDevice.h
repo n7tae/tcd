@@ -36,6 +36,7 @@ public:
 	void Start();
 	void CloseDevice();
 	void AddPacket(const std::shared_ptr<CTranscoderPacket> packet);
+	std::string GetProductID() { return productid; }
 
 protected:
 	const Encoding type;
@@ -44,7 +45,7 @@ protected:
 	std::atomic<bool> keep_running;
 	CPacketQueue input_queue;
 	std::future<void> feedFuture, readFuture;
-	std::string description;
+	std::string description, productid;
 
 	bool DiscoverFtdiDevices();
 	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);

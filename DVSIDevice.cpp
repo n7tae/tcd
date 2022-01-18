@@ -348,7 +348,7 @@ bool CDVDevice::InitDevice()
 	   dump("Product ID Response Packet", &responsePacket, packet_size(responsePacket));
 	   return true;
 	}
-	const std::string productid(responsePacket.payload.ctrl.data.prodid);
+	productid.assign(responsePacket.payload.ctrl.data.prodid);
 
 	ctrlPacket.field_id = PKT_VERSTRING;
 	status = FT_Write(ftHandle, &ctrlPacket, 5, &written);

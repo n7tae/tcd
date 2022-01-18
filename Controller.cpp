@@ -157,13 +157,12 @@ bool CController::InitVocoders()
 	{
 		if (desc.compare(0, 9, "USB-3006 ")) // the USB-3006 device doesn't need this check
 		{
-			std::cerr << "Both devices have to be the same type: " << desc << " != " << deviceset.back().second << std::endl;
-			return true;
+			std::cout << "Both devices should to be the same type: " << desc << " != " << deviceset.back().second << std::endl;
 		}
 	}
 
 	Edvtype dvtype = Edvtype::dv3003;
-	if (0==desc.compare("ThumbDV") || 0==desc.compare("DVstick-30") || 0==desc.compare("USB-3000"))
+	if (0==desc.compare("ThumbDV") || 0==desc.compare("DVstick-30") || 0==desc.compare("USB-3000") || desc.compare("FT230X Basic UART"))
 		dvtype = Edvtype::dv3000;
 
 	if (modules.size() > ((Edvtype::dv3000 == dvtype) ? 1 : 3))
@@ -199,6 +198,12 @@ bool CController::InitVocoders()
 			std::cerr << "Could not create DVSI devices!" << std::endl;
 			return true;
 		}
+	}
+
+	if (dstar_device->GetProductID().compare(dmrsf_device->GetProductID()))
+	{
+		std::cerr << "Both devices must have the same DVSI product ID: " << dstar_device->GetProductID() << " != " << dmrsf_device->GetProductID() << std::endl;
+		return true;
 	}
 
 	// and start them up!
