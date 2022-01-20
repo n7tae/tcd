@@ -55,30 +55,6 @@ void CController::Stop()
 	dmrsf_device.reset();
 }
 
-bool CController::CheckTCModules() const
-{
-	// make sure the configured transcoded modules seems okay
-	const std::string modules(TRANSCODED_MODULES);
-	bool trouble = false;
-
-	if (modules.size() > 3)
-	{
-		std::cerr << "Too many transcoded modules defined!" << std::endl;
-		trouble = true;
-	}
-
-	for (unsigned int i =0; i<modules.size(); i++)
-	{
-		auto c = modules.at(i);
-		if (c < 'A' || c > 'Z') {
-			std::cerr << "Transcoded modules[" << i << "] is not an uppercase letter!" << std::endl;
-			trouble = true;
-		}
-	}
-
-	return trouble;
-}
-
 bool CController::DiscoverFtdiDevices(std::list<std::pair<std::string, std::string>> &found)
 {
 	int iNbDevices = 0;
@@ -124,9 +100,6 @@ bool CController::DiscoverFtdiDevices(std::list<std::pair<std::string, std::stri
 
 bool CController::InitVocoders()
 {
-	if (CheckTCModules())
-		return true;
-
 	// M17 "devices", one for each module
 	const std::string modules(TRANSCODED_MODULES);
 	for ( auto c : modules)
@@ -135,7 +108,7 @@ bool CController::InitVocoders()
 		c2_32[c] = std::unique_ptr<CCodec2>(new CCodec2(true));
 	}
 
-	// the 3003 devices
+	// the 3000 or 3003 devices
 	std::list<std::pair<std::string, std::string>> deviceset;
 
 	if (DiscoverFtdiDevices(deviceset))
@@ -148,7 +121,7 @@ bool CController::InitVocoders()
 
 	if (2 != deviceset.size())
 	{
-		std::cerr << "You need exactly two DVSI 3003 devices" << std::endl;
+		std::cerr << "Could not find exactly two DVSI devices" << std::endl;
 		return true;
 	}
 
@@ -169,6 +142,15 @@ bool CController::InitVocoders()
 	{
 		std::cerr << "Too many transcoded modules for the devices" << std::endl;
 		return true;
+	}
+
+	for (unsigned int i=0; i<modules.size(); i++)
+	{
+		auto c = modules.at(i);
+		if (c < 'A' || c > 'Z') {
+			std::cerr << "Transcoded modules[" << i << "] is not an uppercase letter!" << std::endl;
+			return true;
+		}
 	}
 
 	//initialize each device

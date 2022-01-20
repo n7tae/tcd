@@ -60,7 +60,6 @@ protected:
 	// processing threads
 	void ReadReflectorThread();
 	void ProcessC2Thread();
-	bool CheckTCModules() const;
 	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet);
 	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);
