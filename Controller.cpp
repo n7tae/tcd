@@ -257,12 +257,9 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 		packet->SetM17Data(m17data);
 	}
 	// we might be all done...
-	if (packet->AllCodecsAreSet())
-	{
-		send_mux.lock();
-		SendToReflector(packet);
-		send_mux.unlock();
-	}
+	send_mux.lock();
+	if (packet->AllCodecsAreSet()) SendToReflector(packet);
+	send_mux.unlock();
 }
 
 // The original incoming coded was M17, so we will calculate the audio and then
@@ -358,10 +355,10 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 		codec2_queue.push(packet);
 		dmrsf_device->AddPacket(packet);
 	}
-	else if (packet->AllCodecsAreSet())
+	else
 	{
 		send_mux.lock();
-		SendToReflector(packet);
+		if (packet->AllCodecsAreSet()) SendToReflector(packet);
 		send_mux.unlock();
 	}
 }
@@ -373,10 +370,10 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 		codec2_queue.push(packet);
 		dstar_device->AddPacket(packet);
 	}
-	else if (packet->AllCodecsAreSet())
+	else
 	{
 		send_mux.lock();
-		SendToReflector(packet);
+		if (packet->AllCodecsAreSet()) SendToReflector(packet);
 		send_mux.unlock();
 	}
 }
