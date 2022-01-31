@@ -258,7 +258,7 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 	}
 	// we might be all done...
 	send_mux.lock();
-	if (packet->AllCodecsAreSet()) SendToReflector(packet);
+	if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
 	send_mux.unlock();
 }
 
@@ -345,6 +345,7 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	// send the packet over the socket
 	socket.Send(packet->GetTCPacket());
 	// the socket will automatically close after sending
+	packet->Sent();
 }
 
 void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
@@ -358,7 +359,7 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 	else
 	{
 		send_mux.lock();
-		if (packet->AllCodecsAreSet()) SendToReflector(packet);
+		if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
 		send_mux.unlock();
 	}
 }
@@ -373,7 +374,7 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 	else
 	{
 		send_mux.lock();
-		if (packet->AllCodecsAreSet()) SendToReflector(packet);
+		if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
 		send_mux.unlock();
 	}
 }

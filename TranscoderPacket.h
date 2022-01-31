@@ -55,6 +55,8 @@ public:
 	bool DMRIsSet() const;
 	bool M17IsSet() const;
 	bool AllCodecsAreSet() const;
+	void Sent();
+	bool HasNotBeenSent() const;
 
 	// the all important packet
 	const STCPacket *GetTCPacket() const;
@@ -62,5 +64,5 @@ public:
 private:
 	STCPacket tcpacket;
 	int16_t audio[160];
-	std::atomic<bool> dstar_set, dmr_set, m17_set;
+	std::atomic_bool dstar_set, dmr_set, m17_set, not_sent;
 };

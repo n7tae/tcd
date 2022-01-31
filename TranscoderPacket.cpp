@@ -19,7 +19,7 @@
 
 #include "TranscoderPacket.h"
 
-CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), dmr_set(false), m17_set(false)
+CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), dmr_set(false), m17_set(false), not_sent(true)
 {
 	tcpacket.module = tcp.module;
 	tcpacket.is_last = tcp.is_last;
@@ -146,4 +146,14 @@ bool CTranscoderPacket::M17IsSet() const
 bool CTranscoderPacket::AllCodecsAreSet() const
 {
 	return (dstar_set && dmr_set && m17_set);
+}
+
+void CTranscoderPacket::Sent()
+{
+	not_sent = false;
+}
+
+bool CTranscoderPacket::HasNotBeenSent() const
+{
+	return not_sent;
 }
