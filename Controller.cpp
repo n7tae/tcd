@@ -25,6 +25,9 @@
 #include "TranscoderPacket.h"
 #include "Controller.h"
 
+#define AMBE_GAIN 0 //dB I use -6 here
+#define AMBE2_GAIN 0 //dB I use 6 here
+
 CController::CController() : keep_running(true) {}
 
 bool CController::Start()
@@ -168,10 +171,10 @@ bool CController::InitVocoders()
 		}
 		if (dstar_device && dmrsf_device)
 		{
-			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, AMBE_GAIN))
 				return true;
 			deviceset.pop_front();
-			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, AMBE2_GAIN))
 				return true;
 			deviceset.pop_front();
 		}

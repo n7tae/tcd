@@ -52,7 +52,7 @@ std::shared_ptr<CTranscoderPacket> CDV3003::PopWaitingPacket(unsigned int channe
 	return waiting_packet[channel].pop();
 }
 
-bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
+bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio, const int gain) const
 {
 	// Create Audio packet based on input int8_ts
 	SDV_Packet p;
@@ -62,8 +62,16 @@ bool CDV3003::SendAudio(const uint8_t channel, const int16_t *audio) const
 	p.field_id = channel + PKT_CHANNEL0;
 	p.payload.audio.speechd = PKT_SPEECHD;
 	p.payload.audio.num_samples = 160U;
-	for (int i=0; i<160; i++)
-		p.payload.audio.samples[i] = htons(audio[i]);
+	const uint32_t g = abs(gain);
+	
+	for (int i=0; i<160; i++){
+		if(gain < 0){
+			p.payload.audio3k.samples[i] = htons(audio[i]) / g;
+		}
+		else{
+			p.payload.audio3k.samples[i] = htons(audio[i]) * g;
+		}
+	}
 
 	// send audio packet to DV3000
 	const DWORD size = packet_size(p);

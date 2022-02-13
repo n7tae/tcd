@@ -29,7 +29,7 @@ protected:
 	void PushWaitingPacket(unsigned int channel, std::shared_ptr<CTranscoderPacket> packet);
 	std::shared_ptr<CTranscoderPacket> PopWaitingPacket(unsigned int channel);
 	void ProcessPacket(const SDV_Packet &p);
-	bool SendAudio(const uint8_t channel, const int16_t *audio) const;
+	bool SendAudio(const uint8_t channel, const int16_t *audio, const int gain) const;
 	bool SendData(const uint8_t channel, const uint8_t *data) const;
 
 private:
