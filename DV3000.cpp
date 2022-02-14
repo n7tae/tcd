@@ -63,8 +63,6 @@ bool CDV3000::SendAudio(const uint8_t /*channel*/, const int16_t *audio, const i
 	p.payload.audio3k.num_samples = 160U;
 	const uint32_t g = abs(gain);
 	
-	std::cerr << "SendAudio() gain == " << gain << std::endl;
-	
 	for (int i=0; i<160; i++){
 		if(gain < 0){
 			p.payload.audio3k.samples[i] = htons(audio[i] / g);

@@ -38,7 +38,7 @@
 
 int16_t calcGainVal(float db)
 {
-	float ratio = powf(10.0, (db/10.0));
+	float ratio = powf(10.0, (db/20.0));
 	
 	if(db < 0){
 		ratio = (1/ratio) * (-1);
