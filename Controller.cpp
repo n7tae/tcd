@@ -25,8 +25,8 @@
 #include "TranscoderPacket.h"
 #include "Controller.h"
 
-#define AMBE_GAIN 12 //Encoder gain in dB (I use 12 here)
-#define AMBE2_GAIN -12 //Encoder gain in dB (I use -12 here)
+#define AMBE_GAIN 0 //Encoder gain in dB (I use 12 here)
+#define AMBE2_GAIN 0 //Encoder gain in dB (I use -12 here)
 
 CController::CController() : keep_running(true) {}
 
