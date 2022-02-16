@@ -16,9 +16,7 @@ This software is loosely based on LX3JL's **ambed**, but is easily different eno
 
 ## Constraints and Requirements
 
-Currently, only two AMBE devices are supported. You cannot use a 3003 and a 3000 device together. If you use a pair of 3000 devices, only 460800-baud deivces are supported. When using a pair of 3000 devices, you can only transcode a single channel. If you use a pair of 3003 devices, you can specify up to three transcoded channels. AMBE devices based on LX3JL's [USB-3006 open source design](https://github.com/LX3JL/usb-3006) (sold by Northwest Digital and others) contain a pair of 3003 devices and are ideally suited for *tcd*.
-
-To be clear, a pair of 3000-based devices will support only a single transcoded reflector channel, while a pair of 3003-based devices will support up to three transcoded reflector channels.
+This branch uses only one 300x device for the AMBE+(DStar) codec. The md380_vocoder library is used for the AMBE+2 (DMR/YSF/NXDN) codec. This means that this branch of tcd must run on an ARM platform like a RPi.
 
 Currently, this program must be run locally with its paired URF reflector. Remote transcoding is not yet supported.
 
