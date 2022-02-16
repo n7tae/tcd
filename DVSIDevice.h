@@ -32,7 +32,7 @@ public:
 	CDVDevice(Encoding t);
 	virtual ~CDVDevice();
 
-	bool OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, float dbgain);
+	bool OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, int16_t g);
 	void Start();
 	void CloseDevice();
 	void AddPacket(const std::shared_ptr<CTranscoderPacket> packet);

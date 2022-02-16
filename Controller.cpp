@@ -21,6 +21,7 @@
 #include <sstream>
 #include <fstream>
 #include <thread>
+#include <md380_vocoder.h>
 
 #include "TranscoderPacket.h"
 #include "Controller.h"
@@ -28,10 +29,23 @@
 #define AMBE_GAIN 0 //Encoder gain in dB (I use 12 here)
 #define AMBE2_GAIN 0 //Encoder gain in dB (I use -12 here)
 
+int16_t calcGainVal(float db)
+{
+	float ratio = powf(10.0, (db/20.0));
+	
+	if(db < 0){
+		ratio = (1/ratio) * (-1);
+	}
+	
+	return (int16_t)roundf(ratio);
+}
+
 CController::CController() : keep_running(true) {}
 
 bool CController::Start()
 {
+	swambe2 = true;
+	
 	if (InitVocoders() || reader.Open(REF2TC))
 	{
 		keep_running = false;
@@ -39,6 +53,7 @@ bool CController::Start()
 	}
 	reflectorFuture = std::async(std::launch::async, &CController::ReadReflectorThread, this);
 	c2Future        = std::async(std::launch::async, &CController::ProcessC2Thread,     this);
+	swambe2Future   = std::async(std::launch::async, &CController::ProcessSWAMBE2Thread,this);
 	return false;
 }
 
@@ -124,8 +139,13 @@ bool CController::InitVocoders()
 
 	if (2 != deviceset.size())
 	{
-		std::cerr << "Could not find exactly two DVSI devices" << std::endl;
-		return true;
+		if(swambe2 && (deviceset.size() == 1)){
+			std::cout << "Using one DVSI device and md380_vocoder" << std::endl;
+		}
+		else{
+			std::cerr << "Could not find exactly two DVSI devices" << std::endl;
+			return true;
+		}
 	}
 
 	const auto desc(deviceset.front().second);
@@ -162,19 +182,26 @@ bool CController::InitVocoders()
 		if (Edvtype::dv3000 == dvtype)
 		{
 			dstar_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dstar));
-			dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dmrsf));
+			if(swambe2){
+				md380_init();
+				gain = calcGainVal(AMBE2_GAIN);
+			}
+			else
+				dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dmrsf));
 		}
 		else
 		{
 			dstar_device = std::unique_ptr<CDVDevice>(new CDV3003(Encoding::dstar));
-			dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3003(Encoding::dmrsf));
+			if(swambe2){
+				md380_init();
+			}	
+			else
+				dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3003(Encoding::dmrsf));
 		}
-		if (dstar_device && dmrsf_device)
+		
+		if (dstar_device)
 		{
-			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, AMBE_GAIN))
-				return true;
-			deviceset.pop_front();
-			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, AMBE2_GAIN))
+			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, calcGainVal(AMBE_GAIN)))
 				return true;
 			deviceset.pop_front();
 		}
@@ -183,17 +210,25 @@ bool CController::InitVocoders()
 			std::cerr << "Could not create DVSI devices!" << std::endl;
 			return true;
 		}
+		
+		if (!swambe2 && dmrsf_device)
+		{
+			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, calcGainVal(AMBE2_GAIN)))
+				return true;
+			deviceset.pop_front();
+		}
+		else if(!swambe2)
+		{
+			std::cerr << "Could not create DVSI devices!" << std::endl;
+			return true;
+		}
 	}
 
-	if (dstar_device->GetProductID().compare(dmrsf_device->GetProductID()))
-	{
-		std::cerr << "Both devices must have the same DVSI product ID: " << dstar_device->GetProductID() << " != " << dmrsf_device->GetProductID() << std::endl;
-		return true;
-	}
-
-	// and start them up!
+	// and start them (or it) up!
 	dstar_device->Start();
-	dmrsf_device->Start();
+	
+	if(!swambe2)
+		dmrsf_device->Start();
 
 	deviceset.clear();
 
@@ -220,7 +255,10 @@ void CController::ReadReflectorThread()
 				dstar_device->AddPacket(packet);
 				break;
 			case ECodecType::dmr:
-				dmrsf_device->AddPacket(packet);
+				if(swambe2)
+					swambe2_queue.push(packet);
+				else
+					dmrsf_device->AddPacket(packet);
 				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
@@ -338,6 +376,62 @@ void CController::ProcessC2Thread()
 	}
 }
 
+void CController::AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet)
+{
+	const auto m = packet->GetModule();
+	uint8_t ambe2[9];
+	int16_t tmp[160];
+	const int16_t *p = packet->GetAudioSamples();
+	const uint32_t g = abs(gain);
+	
+	for(int i = 0; i < 160; ++i){
+		if(gain < 0){
+			tmp[i] = p[i] / g;
+		}
+		else{
+			tmp[i] = p[i] * g;
+		}
+	}
+		
+	md380_encode_fec(ambe2, packet->GetAudioSamples());
+	packet->SetDMRData(ambe2);
+	
+	// we might be all done...
+	send_mux.lock();
+	if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
+	send_mux.unlock();
+}
+
+void CController::SWAMBE2toAudio(std::shared_ptr<CTranscoderPacket> packet)
+{
+	int16_t tmp[160] = {0};
+	md380_decode_fec(packet->GetDMRData(), tmp);
+	packet->SetAudioSamples(tmp, false);
+	dstar_device->AddPacket(packet);
+	codec2_queue.push(packet);
+}
+
+void CController::ProcessSWAMBE2Thread()
+{
+	while (keep_running)
+	{
+		auto packet = swambe2_queue.pop();
+
+		switch (packet->GetCodecIn())
+		{
+			case ECodecType::c2_1600:
+			case ECodecType::c2_3200:
+			case ECodecType::dstar:
+				AudiotoSWAMBE2(packet);
+				break;
+
+			case ECodecType::dmr:
+				SWAMBE2toAudio(packet);
+				break;
+		}
+	}
+}
+
 void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 {
 	// open a socket to the reflector channel
@@ -357,7 +451,10 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		// codec_in is dstar, the audio has just completed, so now calc the M17 and DMR
 		codec2_queue.push(packet);
-		dmrsf_device->AddPacket(packet);
+		if(swambe2)
+			swambe2_queue.push(packet);
+		else
+			dmrsf_device->AddPacket(packet);
 	}
 	else
 	{

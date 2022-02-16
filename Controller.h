@@ -44,7 +44,7 @@ public:
 
 protected:
 	std::atomic<bool> keep_running;
-	std::future<void> reflectorFuture, c2Future;
+	std::future<void> reflectorFuture, c2Future, swambe2Future;
 	std::unordered_map<char, int16_t[160]> audio_store;
 	std::unordered_map<char, uint8_t[8]> data_store;
 	CUnixDgramReader reader;
@@ -53,14 +53,20 @@ protected:
 	std::unique_ptr<CDVDevice> dstar_device, dmrsf_device;
 
 	CPacketQueue codec2_queue;
+	CPacketQueue swambe2_queue;
 	std::mutex send_mux;
+	int16_t gain;
+	bool swambe2;
 
 	bool DiscoverFtdiDevices(std::list<std::pair<std::string, std::string>> &found);
 	bool InitVocoders();
 	// processing threads
 	void ReadReflectorThread();
 	void ProcessC2Thread();
+	void ProcessSWAMBE2Thread();
 	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet);
+	void SWAMBE2toAudio(std::shared_ptr<CTranscoderPacket> packet);
+	void AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet);
 	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);
 };

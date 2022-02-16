@@ -14,7 +14,7 @@ else
 CFLAGS = -W -Werror -Icodec2 -MMD -MD -std=c++11
 endif
 
-LDFLAGS = -lftd2xx -pthread
+LDFLAGS = -lftd2xx -lmd380_vocoder -pthread
 
 SRCS = $(wildcard *.cpp) $(wildcard codec2/*.cpp)
 OBJS = $(SRCS:.cpp=.o)
@@ -22,7 +22,7 @@ DEPS = $(SRCS:.cpp=.d)
 EXE = tcd
 
 $(EXE) : $(OBJS)
-	$(GCC) -o $@ $(OBJS) $(LDFLAGS)
+	$(GCC) $(OBJS) $(LDFLAGS) -o $@ -Xlinker --section-start=.firmware=0x0800C000 -Xlinker  --section-start=.sram=0x20000000
 
 %.o : %.cpp
 	$(GCC) $(CFLAGS) -c $< -o $@

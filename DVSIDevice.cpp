@@ -36,17 +36,6 @@
 #include "configure.h"
 #include "Controller.h"
 
-int16_t calcGainVal(float db)
-{
-	float ratio = powf(10.0, (db/20.0));
-	
-	if(db < 0){
-		ratio = (1/ratio) * (-1);
-	}
-	
-	return (int16_t)roundf(ratio);
-}
-
 extern CController Controller;
 
 CDVDevice::CDVDevice(Encoding t) : type(t), ftHandle(nullptr), buffer_depth(0), keep_running(true)
@@ -151,7 +140,7 @@ bool CDVDevice::checkResponse(SDV_Packet &p, uint8_t response) const
 	return false;
 }
 
-bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, float dbgain)
+bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, int16_t g)
 {
 	auto status = FT_OpenEx((PVOID)serialno.c_str(), FT_OPEN_BY_SERIAL_NUMBER, &ftHandle);
 	if (FT_OK != status)
@@ -160,7 +149,7 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 		return true;
 	}
 
-	gain = calcGainVal(dbgain);
+	gain = g;
 	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	FT_Purge(ftHandle, FT_PURGE_RX | FT_PURGE_TX );
 	std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -605,7 +594,6 @@ void CDVDevice::FeedDevice()
 				}
 				else
 				{
-					//SendAudio(index, packet->GetAudioSamples(), (Encoding::dstar==type) ? 4 : -4);
 					SendAudio(index, packet->GetAudioSamples(), gain);
 				}
 				buffer_depth++;
