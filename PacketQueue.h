@@ -42,11 +42,12 @@ public:
 		return pack;
 	}
 
-	void push(std::shared_ptr<CTranscoderPacket> packet)
+	std::size_t push(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		std::lock_guard<std::mutex> lock(m);
 		q.push(packet);
 		c.notify_one();
+		return q.size();
 	}
 
 private:

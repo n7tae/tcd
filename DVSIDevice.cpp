@@ -510,7 +510,14 @@ bool CDVDevice::GetResponse(SDV_Packet &packet)
 
 void CDVDevice::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
-	input_queue.push(packet);
+	std::size_t size = 0;
+	auto newsize = input_queue.push(packet);
+	if (newsize > size)
+	{
+		size = newsize;
+		if (0 == size % 100 && size <= 1000)
+			std::cerr << "InQ at " << productid << " size is " << newsize << std::endl;
+	}
 }
 
 void CDVDevice::dump(const char *title, const void *pointer, int length) const
