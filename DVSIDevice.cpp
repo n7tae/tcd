@@ -516,7 +516,7 @@ void CDVDevice::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 	{
 		size = newsize;
 		if (0 == size % 100 && size <= 1000)
-			std::cerr << "InQ at " << productid << " size is " << newsize << std::endl;
+			std::cerr << ((type==Encoding::dstar) ? "DStar" : "DMR/YSF") << " inQ size is " << newsize << std::endl;
 	}
 }
 
