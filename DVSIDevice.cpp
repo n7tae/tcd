@@ -49,6 +49,7 @@ CDVDevice::~CDVDevice()
 
 void CDVDevice::CloseDevice()
 {
+	input_queue.Shutdown();
 	keep_running = false;
 	if (ftHandle)
 	{
@@ -510,12 +511,12 @@ bool CDVDevice::GetResponse(SDV_Packet &packet)
 
 void CDVDevice::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
-	std::size_t size = 0;
+	std::size_t size = 2;
 	auto newsize = input_queue.push(packet);
 	if (newsize > size)
 	{
 		size = newsize;
-		if (0 == size % 100 && size <= 1000)
+		if (0 == size % 50 && size <= 500)
 			std::cerr << ((type==Encoding::dstar) ? "DStar" : "DMR/YSF") << " inQ size is " << newsize << std::endl;
 	}
 }
@@ -569,40 +570,42 @@ void CDVDevice::FeedDevice()
 	const auto n = modules.size();
 	while (keep_running)
 	{
-		auto packet = input_queue.pop();	// blocks until there is something to pop
+		auto packet = input_queue.pop();	// blocks until there is something to pop, unless shutting down
 
-
-		while (keep_running)	// wait until there is room
+		if (packet)
 		{
-			if (buffer_depth < 2)
-				break;
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(5));
-		}
-
-		if (keep_running)
-		{
-			auto index = modules.find(packet->GetModule());
-			// save the packet in the vocoder's queue while the vocoder does its magic
-			if (std::string::npos == index)
+			while (keep_running)	// wait until there is room
 			{
-				std::cerr << "Module '" << packet->GetModule() << "' is not configured on " << description << std::endl;
+				if (buffer_depth < 2)
+					break;
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
-			else
+
+			if (keep_running)
 			{
-				PushWaitingPacket(index, packet);
-
-				const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
-
-				if (needs_audio)
+				auto index = modules.find(packet->GetModule());
+				// save the packet in the vocoder's queue while the vocoder does its magic
+				if (std::string::npos == index)
 				{
-					SendData(index, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
+					std::cerr << "Module '" << packet->GetModule() << "' is not configured on " << description << std::endl;
 				}
 				else
 				{
-					SendAudio(index, packet->GetAudioSamples());
+					PushWaitingPacket(index, packet);
+
+					const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
+
+					if (needs_audio)
+					{
+						SendData(index, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
+					}
+					else
+					{
+						SendAudio(index, packet->GetAudioSamples());
+					}
+					buffer_depth++;
 				}
-				buffer_depth++;
 			}
 		}
 	}

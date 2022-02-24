@@ -40,7 +40,10 @@ extern CController Controller;
 
 CDV3000::CDV3000(Encoding t) : CDVDevice(t) {}
 
-CDV3000::~CDV3000() {}
+CDV3000::~CDV3000()
+{
+	waiting_packet.Shutdown();
+}
 
 void CDV3000::PushWaitingPacket(unsigned int /* channel */, std::shared_ptr<CTranscoderPacket> packet)
 {
@@ -114,39 +117,42 @@ bool CDV3000::SendData(const uint8_t /* channel */, const uint8_t *data) const
 void CDV3000::ProcessPacket(const SDV_Packet &p)
 {
 	auto packet = PopWaitingPacket(PKT_CHANNEL0);
-	if (PKT_CHANNEL == p.header.packet_type)
+	if (packet)
 	{
-		if (11!=ntohs(p.header.payload_length) || PKT_CHAND!=p.field_id || 72!=p.payload.ambe3k.num_bits)
-			dump("Improper ambe packet:", &p, packet_size(p));
-		buffer_depth--;
-		if (Encoding::dstar == type)
-			packet->SetDStarData(p.payload.ambe3k.data);
-		else
-			packet->SetDMRData(p.payload.ambe3k.data);
+		if (PKT_CHANNEL == p.header.packet_type)
+		{
+			if (11!=ntohs(p.header.payload_length) || PKT_CHAND!=p.field_id || 72!=p.payload.ambe3k.num_bits)
+				dump("Improper ambe packet:", &p, packet_size(p));
+			buffer_depth--;
+			if (Encoding::dstar == type)
+				packet->SetDStarData(p.payload.ambe3k.data);
+			else
+				packet->SetDMRData(p.payload.ambe3k.data);
 
-	}
-	else if (PKT_SPEECH == p.header.packet_type)
-	{
-		if (322!=ntohs(p.header.payload_length) || PKT_SPEECHD!=p.field_id || 160!=p.payload.audio3k.num_samples)
-			dump("Improper audio packet:", &p, packet_size(p));
-		buffer_depth--;
-		packet->SetAudioSamples(p.payload.audio3k.samples, true);
-	}
-	else
-	{
-		dump("ReadDevice() ERROR: Read an unexpected device packet:", &p, packet_size(p));
-		return;
-	}
-	if (Encoding::dstar == type)	// is this a DMR or a DStar device?
-	{
-		Controller.dstar_mux.lock();
-		Controller.RouteDstPacket(packet);
-		Controller.dstar_mux.unlock();
-	}
-	else
-	{
-		Controller.dmrst_mux.lock();
-		Controller.RouteDmrPacket(packet);
-		Controller.dmrst_mux.unlock();
+		}
+		else if (PKT_SPEECH == p.header.packet_type)
+		{
+			if (322!=ntohs(p.header.payload_length) || PKT_SPEECHD!=p.field_id || 160!=p.payload.audio3k.num_samples)
+				dump("Improper audio packet:", &p, packet_size(p));
+			buffer_depth--;
+			packet->SetAudioSamples(p.payload.audio3k.samples, true);
+		}
+		else
+		{
+			dump("ReadDevice() ERROR: Read an unexpected device packet:", &p, packet_size(p));
+			return;
+		}
+		if (Encoding::dstar == type)	// is this a DMR or a DStar device?
+		{
+			Controller.dstar_mux.lock();
+			Controller.RouteDstPacket(packet);
+			Controller.dstar_mux.unlock();
+		}
+		else
+		{
+			Controller.dmrst_mux.lock();
+			Controller.RouteDmrPacket(packet);
+			Controller.dmrst_mux.unlock();
+		}
 	}
 }
