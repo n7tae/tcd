@@ -32,7 +32,7 @@ public:
 	CDVDevice(Encoding t);
 	virtual ~CDVDevice();
 
-	bool OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype);
+	bool OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, int8_t in_gain, int8_t out_gain);
 	void Start();
 	void CloseDevice();
 	void AddPacket(const std::shared_ptr<CTranscoderPacket> packet);
@@ -48,7 +48,7 @@ protected:
 	std::string description, productid;
 
 	bool DiscoverFtdiDevices();
-	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
+	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type, int8_t in_gain, int8_t out_gain);
 	bool checkResponse(SDV_Packet &responsePacket, uint8_t response) const;
 	bool GetResponse(SDV_Packet &packet);
 	bool InitDevice();

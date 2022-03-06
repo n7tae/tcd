@@ -168,10 +168,10 @@ bool CController::InitVocoders()
 		}
 		if (dstar_device && dmrsf_device)
 		{
-			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, DSTAR_IN_GAIN, DSTAR_OUT_GAIN))
 				return true;
 			deviceset.pop_front();
-			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype))
+			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, DMR_IN_GAIN, DMR_OUT_GAIN))
 				return true;
 			deviceset.pop_front();
 		}

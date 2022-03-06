@@ -141,7 +141,7 @@ bool CDVDevice::checkResponse(SDV_Packet &p, uint8_t response) const
 	return false;
 }
 
-bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype)
+bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, int8_t in_gain, int8_t out_gain)
 {
 	auto status = FT_OpenEx((PVOID)serialno.c_str(), FT_OPEN_BY_SERIAL_NUMBER, &ftHandle);
 	if (FT_OK != status)
@@ -240,7 +240,7 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 	const uint8_t limit = (Edvtype::dv3000 == dvtype) ? PKT_CHANNEL0 : PKT_CHANNEL2;
 	for (uint8_t ch=PKT_CHANNEL0; ch<=limit; ch++)
 	{
-		if (ConfigureVocoder(ch, type))
+		if (ConfigureVocoder(ch, type, in_gain, out_gain))
 			return true;
 	}
 	return false;
@@ -388,7 +388,7 @@ void CDVDevice::Start()
 	readFuture = std::async(std::launch::async, &CDVDevice::ReadDevice, this);
 }
 
-bool CDVDevice::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
+bool CDVDevice::ConfigureVocoder(uint8_t pkt_ch, Encoding type, int8_t in_gain, int8_t out_gain)
 {
 	SDV_Packet controlPacket, responsePacket;
 	const uint8_t ecmode[] { PKT_ECMODE, 0x0, 0x0 };
@@ -397,7 +397,7 @@ bool CDVDevice::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 	const uint8_t    dmr[] { PKT_RATEP, 0x04U, 0x31U, 0x07U, 0x54U, 0x24U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x6FU, 0x48U };
 	const uint8_t  chfmt[] { PKT_CHANFMT, 0x0, 0x0 };
 	const uint8_t  spfmt[] { PKT_SPCHFMT, 0x0, 0x0 };
-	const uint8_t   gain[] { PKT_GAIN, 0x0, 0x0 };
+	const uint8_t   gain[] { PKT_GAIN, uint8_t(in_gain), uint8_t(out_gain) };
 	const uint8_t   init[] { PKT_INIT, 0x3U };
 	const uint8_t   resp[] { 0x0, PKT_ECMODE, 0x0, PKT_DCMODE, 0x0, PKT_RATEP, 0x0, PKT_CHANFMT, 0x0, PKT_SPCHFMT, 0x0, PKT_GAIN, 0x0, PKT_INIT, 0x0 };
 
