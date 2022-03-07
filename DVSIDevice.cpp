@@ -23,6 +23,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <sys/select.h>
+#include <csignal>
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -623,15 +624,15 @@ void CDVDevice::ReadDevice()
 			if (FT_OK != status)
 			{
 				FTDI_Error("FT_GetQueueStatus", status);
+				std::cerr << "Shutting down..." << std::endl;
+				raise(SIGTERM);
 			}
 
-			if (RxBytes)
+			if (0 == RxBytes)
 			{
-				break;
-			}
-			else
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				std::this_thread::sleep_for(std::chrono::milliseconds(3));
+				if (! keep_running)
+					return;
 			}
 		}
 

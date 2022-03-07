@@ -27,7 +27,7 @@ int main()
 	if (Controller.Start())
 		return EXIT_FAILURE;
 
-	std::cout << "Hybrid Transcoder version 0.0.3 successfully started" << std::endl;
+	std::cout << "Hybrid Transcoder version 0.0.4 successfully started" << std::endl;
 
 	pause();
 
