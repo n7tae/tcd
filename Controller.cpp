@@ -307,6 +307,8 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 // push the packet onto both the dstar and the dmr queue.
 void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 {
+	uint8_t ambe2[9];
+	
 	if (packet->IsSecond())
 	{
 		if (packet->GetCodecIn() == ECodecType::c2_1600)
@@ -349,7 +351,9 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 	}
 	// the only thing left is to encode the two ambe, so push the packet onto both AMBE queues
 	dstar_device->AddPacket(packet);
-	dmrsf_device->AddPacket(packet);
+
+	md380_encode_fec(ambe2, packet->GetAudioSamples());
+	packet->SetDMRData(ambe2);
 }
 
 void CController::ProcessC2Thread()
