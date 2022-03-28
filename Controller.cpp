@@ -26,8 +26,8 @@
 #include "TranscoderPacket.h"
 #include "Controller.h"
 
-#define AMBE_GAIN 0 //Encoder gain in dB (I use 12 here)
-#define AMBE2_GAIN 0 //Encoder gain in dB (I use -12 here)
+#define AMBE_GAIN 16 //Encoder gain in dB (I use 16 here)
+#define AMBE2_GAIN -24 //Encoder gain in dB (I use -24 here)
 
 int16_t calcGainVal(float db)
 {
