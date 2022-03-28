@@ -397,7 +397,7 @@ void CController::AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet)
 		}
 	}
 		
-	md380_encode_fec(ambe2, packet->GetAudioSamples());
+	md380_encode_fec(ambe2, tmp);
 	packet->SetDMRData(ambe2);
 	
 	// we might be all done...
