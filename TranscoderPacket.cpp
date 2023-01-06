@@ -19,7 +19,7 @@
 
 #include "TranscoderPacket.h"
 
-CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), dmr_set(false), m17_set(false), not_sent(true)
+CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), dmr_set(false), p25_set(false), m17_set(false), not_sent(true)
 {
 	tcpacket.module = tcp.module;
 	tcpacket.is_last = tcp.is_last;
@@ -33,6 +33,9 @@ CTranscoderPacket::CTranscoderPacket(const STCPacket &tcp) : dstar_set(false), d
 		break;
 	case ECodecType::dmr:
 		SetDMRData(tcp.dmr);
+		break;
+	case ECodecType::p25:
+		SetP25Data(tcp.p25);
 		break;
 	case ECodecType::c2_1600:
 	case ECodecType::c2_3200:
@@ -57,6 +60,11 @@ const uint8_t *CTranscoderPacket::GetDStarData() const
 const uint8_t *CTranscoderPacket::GetDMRData() const
 {
 	return tcpacket.dmr;
+}
+
+const uint8_t *CTranscoderPacket::GetP25Data() const
+{
+	return tcpacket.p25;
 }
 
 const uint8_t *CTranscoderPacket::GetM17Data() const
@@ -85,6 +93,12 @@ void CTranscoderPacket::SetDMRData(const uint8_t *dmr)
 {
 	memcpy(tcpacket.dmr, dmr, 9);
 	dmr_set = true;
+}
+
+void CTranscoderPacket::SetP25Data(const uint8_t *p25)
+{
+	memcpy(tcpacket.p25, p25, 11);
+	p25_set = true;
 }
 
 void CTranscoderPacket::SetAudioSamples(const int16_t *sample, bool swap)
@@ -138,6 +152,11 @@ bool CTranscoderPacket::DMRIsSet() const
 	return dmr_set;
 }
 
+bool CTranscoderPacket::P25IsSet() const
+{
+	return p25_set;
+}
+
 bool CTranscoderPacket::M17IsSet() const
 {
 	return m17_set;
@@ -145,7 +164,7 @@ bool CTranscoderPacket::M17IsSet() const
 
 bool CTranscoderPacket::AllCodecsAreSet() const
 {
-	return (dstar_set && dmr_set && m17_set);
+	return (dstar_set && dmr_set && m17_set && p25_set);
 }
 
 void CTranscoderPacket::Sent()

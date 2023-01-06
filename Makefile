@@ -14,7 +14,7 @@ else
 CFLAGS = -W -Werror -Icodec2 -MMD -MD -std=c++11
 endif
 
-LDFLAGS = -lftd2xx -lmd380_vocoder -pthread
+LDFLAGS = -lftd2xx -lmd380_vocoder -limbe_vocoder -pthread
 
 SRCS = $(wildcard *.cpp) $(wildcard codec2/*.cpp)
 OBJS = $(SRCS:.cpp=.o)
