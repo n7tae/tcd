@@ -56,7 +56,8 @@ bool CController::Start()
 	reflectorFuture = std::async(std::launch::async, &CController::ReadReflectorThread, this);
 	c2Future        = std::async(std::launch::async, &CController::ProcessC2Thread,     this);
 	swambe2Future   = std::async(std::launch::async, &CController::ProcessSWAMBE2Thread,this);
-	imbeFuture      = std::async(std::launch::async, &CController::ProcessIMBEThread,this);
+	imbeFuture      = std::async(std::launch::async, &CController::ProcessIMBEThread,   this);
+	usrpFuture      = std::async(std::launch::async, &CController::ProcessUSRPThread,   this);
 	return false;
 }
 
@@ -266,6 +267,9 @@ void CController::ReadReflectorThread()
 			case ECodecType::p25:
 				imbe_queue.push(packet);
 				break;
+			case ECodecType::usrp:
+				usrp_queue.push(packet);
+				break;
 			case ECodecType::c2_1600:
 			case ECodecType::c2_3200:
 				codec2_queue.push(packet);
@@ -303,6 +307,7 @@ void CController::AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet)
 		// set the m17_is_set flag if this is the last packet
 		packet->SetM17Data(m17data);
 	}
+
 	// we might be all done...
 	send_mux.lock();
 	if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
@@ -363,6 +368,7 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 	packet->SetDMRData(ambe2);
 	p25vocoder.encode_4400((int16_t*)packet->GetAudioSamples(), imbe);
 	packet->SetP25Data(imbe);
+	packet->SetUSRPData((int16_t*)packet->GetAudioSamples());
 }
 
 void CController::ProcessC2Thread()
@@ -383,6 +389,7 @@ void CController::ProcessC2Thread()
 			case ECodecType::dstar:
 			case ECodecType::dmr:
 			case ECodecType::p25:
+			case ECodecType::usrp:
 				// codec_in was AMBE, so we need to calculate the the M17 data
 				AudiotoCodec2(packet);
 				break;
@@ -424,6 +431,7 @@ void CController::SWAMBE2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 	dstar_device->AddPacket(packet);
 	codec2_queue.push(packet);
 	imbe_queue.push(packet);
+	usrp_queue.push(packet);
 }
 
 void CController::ProcessSWAMBE2Thread()
@@ -438,6 +446,7 @@ void CController::ProcessSWAMBE2Thread()
 			case ECodecType::c2_3200:
 			case ECodecType::dstar:
 			case ECodecType::p25:
+			case ECodecType::usrp:
 				AudiotoSWAMBE2(packet);
 				break;
 
@@ -465,9 +474,8 @@ void CController::AudiotoIMBE(std::shared_ptr<CTranscoderPacket> packet)
 		}
 	}
 		
-	p25vocoder.encode_4400(tmp, imbe);
+	p25vocoder.encode_4400((int16_t*)p, imbe);
 	packet->SetP25Data(imbe);
-	
 	// we might be all done...
 	send_mux.lock();
 	if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
@@ -482,6 +490,7 @@ void CController::IMBEtoAudio(std::shared_ptr<CTranscoderPacket> packet)
 	dstar_device->AddPacket(packet);
 	codec2_queue.push(packet);
 	swambe2_queue.push(packet);
+	usrp_queue.push(packet);
 }
 
 void CController::ProcessIMBEThread()
@@ -496,11 +505,68 @@ void CController::ProcessIMBEThread()
 			case ECodecType::c2_3200:
 			case ECodecType::dstar:
 			case ECodecType::dmr:
+			case ECodecType::usrp:
 				AudiotoIMBE(packet);
 				break;
 
 			case ECodecType::p25:
 				IMBEtoAudio(packet);
+				break;
+		}
+	}
+}
+
+void CController::AudiotoUSRP(std::shared_ptr<CTranscoderPacket> packet)
+{
+	const auto m = packet->GetModule();
+	int16_t tmp[160];
+	const int16_t *p = packet->GetAudioSamples();
+	const uint32_t g = abs(gain);
+	
+	for(int i = 0; i < 160; ++i){
+		if(gain < 0){
+			tmp[i] = p[i] / g;
+		}
+		else{
+			tmp[i] = p[i] * g;
+		}
+	}
+		
+	packet->SetUSRPData(p);
+	
+	// we might be all done...
+	send_mux.lock();
+	if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
+	send_mux.unlock();
+}
+
+void CController::USRPtoAudio(std::shared_ptr<CTranscoderPacket> packet)
+{
+	packet->SetAudioSamples(packet->GetUSRPData(), false);
+	dstar_device->AddPacket(packet);
+	codec2_queue.push(packet);
+	swambe2_queue.push(packet);
+	imbe_queue.push(packet);
+}
+
+void CController::ProcessUSRPThread()
+{
+	while (keep_running)
+	{
+		auto packet = usrp_queue.pop();
+
+		switch (packet->GetCodecIn())
+		{
+			case ECodecType::c2_1600:
+			case ECodecType::c2_3200:
+			case ECodecType::dstar:
+			case ECodecType::dmr:
+			case ECodecType::p25:
+				AudiotoUSRP(packet);
+				break;
+
+			case ECodecType::usrp:
+				USRPtoAudio(packet);
 				break;
 		}
 	}
@@ -526,6 +592,7 @@ void CController::RouteDstPacket(std::shared_ptr<CTranscoderPacket> packet)
 		// codec_in is dstar, the audio has just completed, so now calc the M17 and DMR
 		codec2_queue.push(packet);
 		imbe_queue.push(packet);
+		usrp_queue.push(packet);
 		if(swambe2)
 			swambe2_queue.push(packet);
 		else
@@ -545,6 +612,7 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 	{
 		codec2_queue.push(packet);
 		imbe_queue.push(packet);
+		usrp_queue.push(packet);
 		dstar_device->AddPacket(packet);
 	}
 	else

@@ -46,7 +46,7 @@ public:
 
 protected:
 	std::atomic<bool> keep_running;
-	std::future<void> reflectorFuture, c2Future, swambe2Future, imbeFuture;
+	std::future<void> reflectorFuture, c2Future, swambe2Future, imbeFuture, usrpFuture;
 	std::unordered_map<char, int16_t[160]> audio_store;
 	std::unordered_map<char, uint8_t[8]> data_store;
 	CUnixDgramReader reader;
@@ -57,6 +57,7 @@ protected:
 	CPacketQueue codec2_queue;
 	CPacketQueue swambe2_queue;
 	CPacketQueue imbe_queue;
+	CPacketQueue usrp_queue;
 	std::mutex send_mux;
 	int16_t gain;
 	bool swambe2;
@@ -69,11 +70,14 @@ protected:
 	void ProcessC2Thread();
 	void ProcessSWAMBE2Thread();
 	void ProcessIMBEThread();
+	void ProcessUSRPThread();
 	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet);
 	void SWAMBE2toAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet);
 	void IMBEtoAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoIMBE(std::shared_ptr<CTranscoderPacket> packet);
+	void USRPtoAudio(std::shared_ptr<CTranscoderPacket> packet);
+	void AudiotoUSRP(std::shared_ptr<CTranscoderPacket> packet);
 	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);
 };

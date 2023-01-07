@@ -37,10 +37,12 @@ public:
 	const uint8_t *GetDMRData() const;
 	const uint8_t *GetP25Data() const;
 	const uint8_t *GetM17Data() const;
+	const int16_t *GetUSRPData() const;
 	void SetDStarData(const uint8_t *dstar);
 	void SetDMRData(const uint8_t *dmr);
 	void SetP25Data(const uint8_t *p25);
 	void SetM17Data(const uint8_t *m17);
+	void SetUSRPData(const int16_t *usrp);
 	void SetAudioSamples(const int16_t *samples, bool swap);
 
 	// audio
@@ -57,6 +59,7 @@ public:
 	bool DMRIsSet() const;
 	bool P25IsSet() const;
 	bool M17IsSet() const;
+	bool USRPIsSet() const;
 	bool AllCodecsAreSet() const;
 	void Sent();
 	bool HasNotBeenSent() const;
@@ -67,5 +70,5 @@ public:
 private:
 	STCPacket tcpacket;
 	int16_t audio[160];
-	std::atomic_bool dstar_set, dmr_set, p25_set, m17_set, not_sent;
+	std::atomic_bool dstar_set, dmr_set, p25_set, m17_set, usrp_set, not_sent;
 };
