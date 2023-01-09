@@ -59,7 +59,9 @@ protected:
 	CPacketQueue imbe_queue;
 	CPacketQueue usrp_queue;
 	std::mutex send_mux;
-	int16_t gain;
+	int16_t ambe_gain;
+	int16_t usrp_rxgain;
+	int16_t usrp_txgain;
 	bool swambe2;
 	imbe_vocoder p25vocoder;
 

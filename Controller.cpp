@@ -24,12 +24,13 @@
 #include <thread>
 #include <md380_vocoder.h>
 
-
 #include "TranscoderPacket.h"
 #include "Controller.h"
 
 #define AMBE_GAIN 16 //Encoder gain in dB (I use 16 here)
 #define AMBE2_GAIN -24 //Encoder gain in dB (I use -24 here)
+#define USRP_RXGAIN -6
+#define USRP_TXGAIN 3
 
 int16_t calcGainVal(float db)
 {
@@ -47,6 +48,8 @@ CController::CController() : keep_running(true) {}
 bool CController::Start()
 {
 	swambe2 = true;
+	usrp_rxgain = calcGainVal(USRP_RXGAIN);
+	usrp_txgain = calcGainVal(USRP_TXGAIN);
 	
 	if (InitVocoders() || reader.Open(REF2TC))
 	{
@@ -188,7 +191,7 @@ bool CController::InitVocoders()
 			dstar_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dstar));
 			if(swambe2){
 				md380_init();
-				gain = calcGainVal(AMBE2_GAIN);
+				ambe_gain = calcGainVal(AMBE2_GAIN);
 			}
 			else
 				dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dmrsf));
@@ -403,10 +406,10 @@ void CController::AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet)
 	uint8_t ambe2[9];
 	int16_t tmp[160];
 	const int16_t *p = packet->GetAudioSamples();
-	const uint32_t g = abs(gain);
+	const uint32_t g = abs(ambe_gain);
 	
 	for(int i = 0; i < 160; ++i){
-		if(gain < 0){
+		if(ambe_gain < 0){
 			tmp[i] = p[i] / g;
 		}
 		else{
@@ -459,22 +462,9 @@ void CController::ProcessSWAMBE2Thread()
 
 void CController::AudiotoIMBE(std::shared_ptr<CTranscoderPacket> packet)
 {
-	const auto m = packet->GetModule();
 	uint8_t imbe[11];
-	int16_t tmp[160];
-	const int16_t *p = packet->GetAudioSamples();
-	const uint32_t g = abs(gain);
-	
-	for(int i = 0; i < 160; ++i){
-		if(gain < 0){
-			tmp[i] = p[i] / g;
-		}
-		else{
-			tmp[i] = p[i] * g;
-		}
-	}
-		
-	p25vocoder.encode_4400((int16_t*)p, imbe);
+
+	p25vocoder.encode_4400((int16_t *)packet->GetAudioSamples(), imbe);
 	packet->SetP25Data(imbe);
 	// we might be all done...
 	send_mux.lock();
@@ -518,13 +508,12 @@ void CController::ProcessIMBEThread()
 
 void CController::AudiotoUSRP(std::shared_ptr<CTranscoderPacket> packet)
 {
-	const auto m = packet->GetModule();
 	int16_t tmp[160];
 	const int16_t *p = packet->GetAudioSamples();
-	const uint32_t g = abs(gain);
+	const uint32_t g = abs(usrp_txgain);
 	
 	for(int i = 0; i < 160; ++i){
-		if(gain < 0){
+		if(usrp_txgain < 0){
 			tmp[i] = p[i] / g;
 		}
 		else{
@@ -532,7 +521,7 @@ void CController::AudiotoUSRP(std::shared_ptr<CTranscoderPacket> packet)
 		}
 	}
 		
-	packet->SetUSRPData(p);
+	packet->SetUSRPData(tmp);
 	
 	// we might be all done...
 	send_mux.lock();
@@ -542,7 +531,21 @@ void CController::AudiotoUSRP(std::shared_ptr<CTranscoderPacket> packet)
 
 void CController::USRPtoAudio(std::shared_ptr<CTranscoderPacket> packet)
 {
-	packet->SetAudioSamples(packet->GetUSRPData(), false);
+	int16_t tmp[160];
+	const int16_t *p = packet->GetUSRPData();
+	const uint32_t g = abs(usrp_rxgain);
+	
+	for(int i = 0; i < 160; ++i){
+		if(usrp_rxgain < 0){
+			tmp[i] = p[i] / g;
+		}
+		else{
+			tmp[i] = p[i] * g;
+		}
+	}
+	
+	//packet->SetAudioSamples(packet->GetUSRPData(), false);
+	packet->SetAudioSamples(tmp, false);
 	dstar_device->AddPacket(packet);
 	codec2_queue.push(packet);
 	swambe2_queue.push(packet);
