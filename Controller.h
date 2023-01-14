@@ -32,6 +32,7 @@
 #include "UnixDgramSocket.h"
 #include "configure.h"
 
+
 class CController
 {
 public:
@@ -46,7 +47,7 @@ public:
 
 protected:
 	std::atomic<bool> keep_running;
-	std::future<void> reflectorFuture, c2Future, swambe2Future, imbeFuture, usrpFuture;
+	std::future<void> reflectorFuture, c2Future, imbeFuture, usrpFuture;
 	std::unordered_map<char, int16_t[160]> audio_store;
 	std::unordered_map<char, uint8_t[8]> data_store;
 	CUnixDgramReader reader;
@@ -55,14 +56,13 @@ protected:
 	std::unique_ptr<CDVDevice> dstar_device, dmrsf_device;
 
 	CPacketQueue codec2_queue;
-	CPacketQueue swambe2_queue;
+	
 	CPacketQueue imbe_queue;
 	CPacketQueue usrp_queue;
 	std::mutex send_mux;
 	int16_t ambe_gain;
 	int16_t usrp_rxgain;
 	int16_t usrp_txgain;
-	bool swambe2;
 	imbe_vocoder p25vocoder;
 
 	bool DiscoverFtdiDevices(std::list<std::pair<std::string, std::string>> &found);
@@ -70,16 +70,21 @@ protected:
 	// processing threads
 	void ReadReflectorThread();
 	void ProcessC2Thread();
-	void ProcessSWAMBE2Thread();
+	
 	void ProcessIMBEThread();
 	void ProcessUSRPThread();
 	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoCodec2(std::shared_ptr<CTranscoderPacket> packet);
-	void SWAMBE2toAudio(std::shared_ptr<CTranscoderPacket> packet);
-	void AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet);
 	void IMBEtoAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoIMBE(std::shared_ptr<CTranscoderPacket> packet);
 	void USRPtoAudio(std::shared_ptr<CTranscoderPacket> packet);
 	void AudiotoUSRP(std::shared_ptr<CTranscoderPacket> packet);
 	void SendToReflector(std::shared_ptr<CTranscoderPacket> packet);
+#ifdef USE_SW_AMBE2
+    std::future<void> swambe2Future;
+    CPacketQueue swambe2_queue;
+    void ProcessSWAMBE2Thread();
+    void SWAMBE2toAudio(std::shared_ptr<CTranscoderPacket> packet);
+    void AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet);
+#endif
 };
