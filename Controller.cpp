@@ -30,8 +30,8 @@
 #include "Controller.h"
 
 
-#define AMBE_GAIN 16 //Encoder gain in dB (I use 16 here)
-#define AMBE2_GAIN -24 //Encoder gain in dB (I use -24 here)
+//#define AMBE_GAIN 16 //Encoder gain in dB (I use 16 here)
+//#define AMBE2_GAIN -24 //Encoder gain in dB (I use -24 here)
 #define USRP_RXGAIN -6
 #define USRP_TXGAIN 3
 
@@ -196,7 +196,7 @@ bool CController::InitVocoders()
 			dstar_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dstar));
 #ifdef USE_SW_AMBE2
 			md380_init();
-			ambe_gain = calcGainVal(AMBE2_GAIN);
+			ambe_gain = calcGainVal(DMR_IN_GAIN);
 #else
 			dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dmrsf));
 #endif
@@ -213,7 +213,7 @@ bool CController::InitVocoders()
 		
 		if (dstar_device)
 		{
-			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, calcGainVal(AMBE_GAIN)))
+			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, DSTAR_IN_GAIN, DSTAR_OUT_GAIN))
 				return true;
 			deviceset.pop_front();
 		}
@@ -225,7 +225,7 @@ bool CController::InitVocoders()
 #ifndef USE_SW_AMBE2
 		if (dmrsf_device)
 		{
-			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, calcGainVal(AMBE2_GAIN)))
+			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, DMR_IN_GAIN, DMR_OUT_GAIN))
 				return true;
 			deviceset.pop_front();
 		}

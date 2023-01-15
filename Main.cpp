@@ -1,5 +1,5 @@
 // tcd - a hybrid transcoder using DVSI hardware and Codec2 software
-// Copyright © 2021 Thomas A. Early N7TAE
+// Copyright © 2021,2023 Thomas A. Early N7TAE
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ int main()
 	if (Controller.Start())
 		return EXIT_FAILURE;
 
-	std::cout << "Hybrid Transcoder version 0.0.1 successfully started" << std::endl;
+	std::cout << "Hybrid Transcoder version 0.0.5 successfully started" << std::endl;
 
 	pause();
 

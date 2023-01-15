@@ -32,7 +32,7 @@ public:
 	CDVDevice(Encoding t);
 	virtual ~CDVDevice();
 
-	bool OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, int16_t g);
+	bool OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, int8_t in_gain, int8_t out_gain);
 	void Start();
 	void CloseDevice();
 	void AddPacket(const std::shared_ptr<CTranscoderPacket> packet);
@@ -46,10 +46,9 @@ protected:
 	CPacketQueue input_queue;
 	std::future<void> feedFuture, readFuture;
 	std::string description, productid;
-	int16_t gain;
 
 	bool DiscoverFtdiDevices();
-	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type);
+	bool ConfigureVocoder(uint8_t pkt_ch, Encoding type, int8_t in_gain, int8_t out_gain);
 	bool checkResponse(SDV_Packet &responsePacket, uint8_t response) const;
 	bool GetResponse(SDV_Packet &packet);
 	bool InitDevice();
@@ -62,6 +61,6 @@ protected:
 	virtual void PushWaitingPacket(unsigned int channel, std::shared_ptr<CTranscoderPacket> packet) = 0;
 	virtual std::shared_ptr<CTranscoderPacket> PopWaitingPacket(unsigned int channel) = 0;
 	virtual void ProcessPacket(const SDV_Packet &p) = 0;
-	virtual bool SendAudio(const uint8_t channel, const int16_t *audio, const int gain) const = 0;
+	virtual bool SendAudio(const uint8_t channel, const int16_t *audio) const = 0;
 	virtual bool SendData(const uint8_t channel, const uint8_t *data) const = 0;
 };

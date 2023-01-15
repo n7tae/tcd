@@ -30,27 +30,59 @@
 class CPacketQueue
 {
 public:
-	// blocks until there's something to pop
+	CPacketQueue() : keep_running(true) {}
+
 	std::shared_ptr<CTranscoderPacket> pop()
 	{
-		std::unique_lock<std::mutex> lock(m);
-		while (q.empty()) {
-			c.wait(lock);
+		std::shared_ptr<CTranscoderPacket> rval;	// the return value
+
+		std::unique_lock<std::mutex> lock(mx);
+
+		while (keep_running && q.empty())
+			cv.wait(lock);
+
+		if (keep_running)
+		{
+			rval = q.front();
+			q.pop();
 		}
-		auto pack = q.front();
-		q.pop();
-		return pack;
+		else
+		{
+			while (! q.empty())
+				q.pop();
+		}
+
+		return rval;
 	}
 
-	void push(std::shared_ptr<CTranscoderPacket> packet)
+	std::size_t push(std::shared_ptr<CTranscoderPacket> item)
 	{
-		std::lock_guard<std::mutex> lock(m);
-		q.push(packet);
-		c.notify_one();
+		std::unique_lock<std::mutex> lock(mx);
+		bool was_empty = q.empty();
+		q.push(item);
+
+		if (was_empty)
+			cv.notify_one();
+
+		return q.size();
+	}
+
+	bool IsEmpty()
+	{
+		std::lock_guard<std::mutex> lock(mx);
+		return q.empty();
+	}
+
+	void Shutdown()
+	{
+		std::lock_guard<std::mutex> lock(mx);
+		keep_running = false;
+		cv.notify_all();
 	}
 
 private:
+	std::mutex mx;
+	std::condition_variable cv;
 	std::queue<std::shared_ptr<CTranscoderPacket>> q;
-	mutable std::mutex m;
-	std::condition_variable c;
+	std::atomic<bool> keep_running;
 };

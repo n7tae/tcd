@@ -32,7 +32,6 @@
 #include "UnixDgramSocket.h"
 #include "configure.h"
 
-
 class CController
 {
 public:

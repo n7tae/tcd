@@ -7,7 +7,7 @@
  */
 
 // tcd - a hybid transcoder using DVSI hardware and Codec2 software
-// Copyright © 2022 Thomas A. Early N7TAE
+// Copyright © 2022-2023 Thomas A. Early N7TAE
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <sys/select.h>
+#include <csignal>
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -49,6 +50,7 @@ CDVDevice::~CDVDevice()
 
 void CDVDevice::CloseDevice()
 {
+	input_queue.Shutdown();
 	keep_running = false;
 	if (ftHandle)
 	{
@@ -140,7 +142,7 @@ bool CDVDevice::checkResponse(SDV_Packet &p, uint8_t response) const
 	return false;
 }
 
-bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, int16_t g)
+bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc, Edvtype dvtype, int8_t in_gain, int8_t out_gain)
 {
 	auto status = FT_OpenEx((PVOID)serialno.c_str(), FT_OPEN_BY_SERIAL_NUMBER, &ftHandle);
 	if (FT_OK != status)
@@ -149,7 +151,6 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 		return true;
 	}
 
-	gain = g;
 	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	FT_Purge(ftHandle, FT_PURGE_RX | FT_PURGE_TX );
 	std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -240,7 +241,7 @@ bool CDVDevice::OpenDevice(const std::string &serialno, const std::string &desc,
 	const uint8_t limit = (Edvtype::dv3000 == dvtype) ? PKT_CHANNEL0 : PKT_CHANNEL2;
 	for (uint8_t ch=PKT_CHANNEL0; ch<=limit; ch++)
 	{
-		if (ConfigureVocoder(ch, type))
+		if (ConfigureVocoder(ch, type, in_gain, out_gain))
 			return true;
 	}
 	return false;
@@ -388,7 +389,7 @@ void CDVDevice::Start()
 	readFuture = std::async(std::launch::async, &CDVDevice::ReadDevice, this);
 }
 
-bool CDVDevice::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
+bool CDVDevice::ConfigureVocoder(uint8_t pkt_ch, Encoding type, int8_t in_gain, int8_t out_gain)
 {
 	SDV_Packet controlPacket, responsePacket;
 	const uint8_t ecmode[] { PKT_ECMODE, 0x0, 0x0 };
@@ -397,7 +398,7 @@ bool CDVDevice::ConfigureVocoder(uint8_t pkt_ch, Encoding type)
 	const uint8_t    dmr[] { PKT_RATEP, 0x04U, 0x31U, 0x07U, 0x54U, 0x24U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x6FU, 0x48U };
 	const uint8_t  chfmt[] { PKT_CHANFMT, 0x0, 0x0 };
 	const uint8_t  spfmt[] { PKT_SPCHFMT, 0x0, 0x0 };
-	const uint8_t   gain[] { PKT_GAIN, 0x0, 0x0 };
+	const uint8_t   gain[] { PKT_GAIN, uint8_t(in_gain), uint8_t(out_gain) };
 	const uint8_t   init[] { PKT_INIT, 0x3U };
 	const uint8_t   resp[] { 0x0, PKT_ECMODE, 0x0, PKT_DCMODE, 0x0, PKT_RATEP, 0x0, PKT_CHANFMT, 0x0, PKT_SPCHFMT, 0x0, PKT_GAIN, 0x0, PKT_INIT, 0x0 };
 
@@ -511,7 +512,12 @@ bool CDVDevice::GetResponse(SDV_Packet &packet)
 
 void CDVDevice::AddPacket(const std::shared_ptr<CTranscoderPacket> packet)
 {
-	input_queue.push(packet);
+	auto size = input_queue.push(packet);
+	if (size > 200)
+	{
+		std::cerr << ((type==Encoding::dstar) ? "DStar" : "DMR/YSF") << " inQ size is overflowing! Shutting down..." << std::endl;
+		raise(SIGINT);
+	}
 }
 
 void CDVDevice::dump(const char *title, const void *pointer, int length) const
@@ -563,40 +569,42 @@ void CDVDevice::FeedDevice()
 	const auto n = modules.size();
 	while (keep_running)
 	{
-		auto packet = input_queue.pop();	// blocks until there is something to pop
+		auto packet = input_queue.pop();	// blocks until there is something to pop, unless shutting down
 
-
-		while (keep_running)	// wait until there is room
+		if (packet)
 		{
-			if (buffer_depth < 2)
-				break;
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(5));
-		}
-
-		if (keep_running)
-		{
-			auto index = modules.find(packet->GetModule());
-			// save the packet in the vocoder's queue while the vocoder does its magic
-			if (std::string::npos == index)
+			while (keep_running)	// wait until there is room
 			{
-				std::cerr << "Module '" << packet->GetModule() << "' is not configured on " << description << std::endl;
+				if (buffer_depth < 2)
+					break;
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
-			else
+
+			if (keep_running)
 			{
-				PushWaitingPacket(index, packet);
-
-				const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
-
-				if (needs_audio)
+				auto index = modules.find(packet->GetModule());
+				// save the packet in the vocoder's queue while the vocoder does its magic
+				if (std::string::npos == index)
 				{
-					SendData(index, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
+					std::cerr << "Module '" << packet->GetModule() << "' is not configured on " << description << std::endl;
 				}
 				else
 				{
-					SendAudio(index, packet->GetAudioSamples(), gain);
+					PushWaitingPacket(index, packet);
+
+					const bool needs_audio = (Encoding::dstar==type) ? packet->DStarIsSet() : packet->DMRIsSet();
+
+					if (needs_audio)
+					{
+						SendData(index, (Encoding::dstar==type) ? packet->GetDStarData() : packet->GetDMRData());
+					}
+					else
+					{
+						SendAudio(index, packet->GetAudioSamples());
+					}
+					buffer_depth++;
 				}
-				buffer_depth++;
 			}
 		}
 	}
@@ -614,15 +622,15 @@ void CDVDevice::ReadDevice()
 			if (FT_OK != status)
 			{
 				FTDI_Error("FT_GetQueueStatus", status);
+				std::cerr << "Shutting down..." << std::endl;
+				raise(SIGTERM);
 			}
 
-			if (RxBytes)
+			if (0 == RxBytes)
 			{
-				break;
-			}
-			else
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+				std::this_thread::sleep_for(std::chrono::milliseconds(3));
+				if (! keep_running)
+					return;
 			}
 		}
 
