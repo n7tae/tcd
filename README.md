@@ -8,6 +8,14 @@ This will build a new kind of hybrid transcoder that uses AMBE DVSI-based hardwa
 
 This is the only transcoder that will work with the [URF reflector](https://github.com/n7tae/urfd).
 
+The imbe_vocoder library is required for P25 and can be found here:
+
+https://github.com/nostar/imbe_vocoder
+
+To use md380_vocoder along with a single DV Dongle on an ARM platform (like RPi) change the line 'swambe2 = false' to 'swambe2 = true'. The md380_vocoder library can be found here:
+
+https://github.com/nostar/md380_vocoder
+
 This software is loosely based on LX3JL's **ambed**, but is easily different enough to be considered an entirely original work. Here are some major differences with ambed:
 
 - tcd uses both hardware-based and software-based vocoders, providing a bridge between the closed source vocoders used in DStar, DMR and YSF and open-source vocoders used in M17.
