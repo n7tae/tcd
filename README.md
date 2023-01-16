@@ -12,7 +12,7 @@ The imbe_vocoder library is required for P25 and can be found here:
 
 https://github.com/nostar/imbe_vocoder
 
-To use md380_vocoder along with a single DV Dongle on an ARM platform (like RPi) change the line 'swambe2 = false' to 'swambe2 = true'. The md380_vocoder library can be found here:
+To use md380_vocoder along with a single DV Dongle on an ARM platform (like RPi) change the line 'swambe2 = false' to 'swambe2 = true' in the Makefile. The md380_vocoder library can be found here:
 
 https://github.com/nostar/md380_vocoder
 
