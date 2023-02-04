@@ -377,11 +377,10 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 
 #ifdef USE_SW_AMBE2
 	md380_encode_fec(ambe2, packet->GetAudioSamples());
+	packet->SetDMRData(ambe2);
 #else
 	dmrsf_device->AddPacket(packet);
 #endif
-	
-	packet->SetDMRData(ambe2);
 	p25vocoder.encode_4400((int16_t*)packet->GetAudioSamples(), imbe);
 	packet->SetP25Data(imbe);
 	packet->SetUSRPData((int16_t*)packet->GetAudioSamples());

@@ -6,7 +6,7 @@ include configure.mk
 # need to update the systemd service script
 BINDIR = /usr/local/bin
 
-swambe2 = false
+swambe2 = true
 
 GCC = g++
 
