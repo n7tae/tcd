@@ -18,20 +18,31 @@
 #include <iostream>
 
 #include "Controller.h"
+#include "Configure.h"
 
 // the global controller object
-CController Controller;
+CConfigure  g_Conf;
+CController g_Cont;
 
-int main()
+int main(int argc, char *argv[])
 {
-	if (Controller.Start())
+	if (2 != argc)
+	{
+		std::cerr << "ERROR: Usage: " << argv[0] << " PATHTOINIFILE" << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	if (g_Conf.ReadData(argv[1]))
 		return EXIT_FAILURE;
 
-	std::cout << "Hybrid Transcoder version 0.0.5 successfully started" << std::endl;
+	if (g_Cont.Start())
+		return EXIT_FAILURE;
+
+	std::cout << "Hybrid Transcoder version 0.1.0 successfully started" << std::endl;
 
 	pause();
 
-	Controller.Stop();
+	g_Cont.Stop();
 
 	return EXIT_SUCCESS;
 }

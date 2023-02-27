@@ -7,7 +7,7 @@ After=systemd-user-session.service network.target
 Type=simple
 ExecStartPre=-/sbin/rmmod ftdi_sio
 ExecStartPre=-/sbin/rmmod usbserial
-ExecStart=/usr/local/bin/tcd
+ExecStart=/usr/local/bin/tcd /PATH_TO_INI_FILE
 Restart=always
 
 [Install]

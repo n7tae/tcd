@@ -30,7 +30,6 @@
 #include "DV3000.h"
 #include "DV3003.h"
 #include "UnixDgramSocket.h"
-#include "configure.h"
 
 class CController
 {
@@ -55,7 +54,7 @@ protected:
 	std::unique_ptr<CDVDevice> dstar_device, dmrsf_device;
 
 	CPacketQueue codec2_queue;
-	
+
 	CPacketQueue imbe_queue;
 	CPacketQueue usrp_queue;
 	std::mutex send_mux;
@@ -69,7 +68,7 @@ protected:
 	// processing threads
 	void ReadReflectorThread();
 	void ProcessC2Thread();
-	
+
 	void ProcessIMBEThread();
 	void ProcessUSRPThread();
 	void Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet);

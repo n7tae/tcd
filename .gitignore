@@ -29,9 +29,5 @@
 # Visual Studio
 .vscode
 
-#files
-configure.h
-configure.mk
-
 # Executables
 tcd

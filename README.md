@@ -36,13 +36,22 @@ In the parent directory of you urfd repository:
 
 ```bash
 git clone https://github.com/n7tae/tcd.git
+cd tcd
 ```
 
 To be perfectly clear, the urfd reflector repository clone and this clone **must be in the same directory**.
 
-## Configuring, compiling, installing and other activities
+## Configuring and compiling
 
-All other activities will be performed by the ./rconfig and ./radmin scripts in your urfd repo.
+Copy the three configuration files: `cp config/* .`
+Use your favorite text editor:
+- *tcd.mk* defines some compile time options. Once you've set these options, do `make`
+- *tcd.ini* defines run-time options. It is especially imporant that the `Transcoded` line for the tcd.ini file is exactly the same as the same line in the urfd.ini file!
+- *tcd.service* is the systemd service file. be sure the `ExecStart` line will successfully start tcd!
+
+## Installing and other activities
+
+If the transcoder is local, all other activities will be performed by the ./radmin scripts in your urfd repo.
 
 ## 73
 
