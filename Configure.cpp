@@ -120,7 +120,6 @@ bool CConfigure::ReadData(const std::string &path)
 			usrp_rx = getSigned(key, value);
 		else
 			badParam(key);
-		break;
 	}
 	cfgfile.close();
 
