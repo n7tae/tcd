@@ -35,7 +35,7 @@
 #include "DV3000.h"
 #include "Controller.h"
 
-extern CController Controller;
+extern CController g_Cont;
 
 CDV3000::CDV3000(Encoding t) : CDVDevice(t) {}
 
@@ -143,15 +143,15 @@ void CDV3000::ProcessPacket(const SDV_Packet &p)
 		}
 		if (Encoding::dstar == type)	// is this a DMR or a DStar device?
 		{
-			Controller.dstar_mux.lock();
-			Controller.RouteDstPacket(packet);
-			Controller.dstar_mux.unlock();
+			g_Cont.dstar_mux.lock();
+			g_Cont.RouteDstPacket(packet);
+			g_Cont.dstar_mux.unlock();
 		}
 		else
 		{
-			Controller.dmrst_mux.lock();
-			Controller.RouteDmrPacket(packet);
-			Controller.dmrst_mux.unlock();
+			g_Cont.dmrst_mux.lock();
+			g_Cont.RouteDmrPacket(packet);
+			g_Cont.dmrst_mux.unlock();
 		}
 	}
 }
