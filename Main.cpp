@@ -20,7 +20,7 @@
 #include "Controller.h"
 #include "Configure.h"
 
-// the global controller object
+// the global objects
 CConfigure  g_Conf;
 CController g_Cont;
 

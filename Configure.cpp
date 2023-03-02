@@ -24,6 +24,8 @@
 #include "Configure.h"
 
 // ini file keywords
+#define USRPTXGAIN     "UsrpTxGain"
+#define USRPRXGAIN     "UsrpRxGain"
 #define DMRGAININ      "DmrYsfGainIn"
 #define DMRGAINOUT     "DmrYsfGainOut"
 #define DSTARGAININ    "DStarGainIn"
@@ -112,6 +114,10 @@ bool CConfigure::ReadData(const std::string &path)
 			dmr_in = getSigned(key, value);
 		else if (0 == key.compare(DMRGAINOUT))
 			dmr_out = getSigned(key, value);
+		else if (0 == key.compare(USRPTXGAIN))
+			usrp_tx = getSigned(key, value);
+		else if (0 == key.compare(USRPRXGAIN))
+			usrp_rx = getSigned(key, value);
 		else
 			badParam(key);
 		break;
@@ -135,10 +141,12 @@ bool CConfigure::ReadData(const std::string &path)
 	}
 
 	std::cout << TRANSCODED << " = " << tcmods << std::endl;
-	std::cout << DSTARGAININ << " = " << int(dstar_in) << std::endl;
-	std::cout << DSTARGAINOUT << " = " << int(dstar_out) << std::endl;
-	std::cout << DMRGAININ << " = " << int(dmr_in) << std::endl;
-	std::cout << DMRGAINOUT << " = " << int(dmr_out) << std::endl;
+	std::cout << DSTARGAININ << " = " << dstar_in << std::endl;
+	std::cout << DSTARGAINOUT << " = " << dstar_out << std::endl;
+	std::cout << DMRGAININ << " = " << dmr_in << std::endl;
+	std::cout << DMRGAINOUT << " = " << dmr_out << std::endl;
+	std::cout << USRPTXGAIN << " = " << usrp_tx << std::endl;
+	std::cout << USRPRXGAIN << " = " << usrp_rx << std::endl;
 
 	return false;
 }
@@ -146,10 +154,15 @@ bool CConfigure::ReadData(const std::string &path)
 int CConfigure::getSigned(const std::string &key, const std::string &value) const
 {
 	auto i = std::stoi(value.c_str());
-	if ( i < -90 || i > 90 )
+	if (i < -36)
 	{
-		std::cout << "WARNING: " << key << " = " << value << " is out of range. Reset to zero!" << std::endl;
-		i = 0;
+		std::cout << "WARNING: " << key << " = " << value << " is too low. Limit to -36!" << std::endl;
+		i = -36;
+	}
+	else if (i > 36)
+	{
+		std::cout << "WARNING: " << key << " = " << value << " is too high. Limit to 36!" << std::endl;
+		i = 36;
 	}
 	return i;
 }
@@ -159,14 +172,16 @@ void CConfigure::badParam(const std::string &key) const
 	std::cout << "WARNING: Unexpected parameter: '" << key << "'" << std::endl;
 }
 
-int8_t CConfigure::GetGain(EGainType gt) const
+int CConfigure::GetGain(EGainType gt) const
 {
 	switch (gt)
 	{
-		case EGainType::dmrin:    return int8_t(dmr_in);
-		case EGainType::dmrout:   return int8_t(dmr_out);
-		case EGainType::dstarin:  return int8_t(dstar_in);
-		case EGainType::dstarout: return int8_t(dstar_out);
+		case EGainType::dmrin:    return dmr_in;
+		case EGainType::dmrout:   return dmr_out;
+		case EGainType::dstarin:  return dstar_in;
+		case EGainType::dstarout: return dstar_out;
+		case EGainType::usrptx:   return usrp_tx;
+		case EGainType::usrprx:   return usrp_rx;
 		default:                  return 0;
 	}
 }

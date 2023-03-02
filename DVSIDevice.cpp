@@ -34,8 +34,10 @@
 #include <thread>
 
 #include "DVSIDevice.h"
-#include "configure.h"
 #include "Controller.h"
+#include "Configure.h"
+
+extern CConfigure g_Conf;
 
 extern CController Controller;
 
@@ -565,7 +567,7 @@ void CDVDevice::dump(const char *title, const void *pointer, int length) const
 
 void CDVDevice::FeedDevice()
 {
-	const std::string modules(TRANSCODED_MODULES);
+	const std::string modules(g_Conf.GetTCMods());
 	const auto n = modules.size();
 	while (keep_running)
 	{

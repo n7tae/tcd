@@ -33,17 +33,12 @@
 
 extern CConfigure g_Conf;
 
-//#define AMBE_GAIN 16 //Encoder gain in dB (I use 16 here)
-//#define AMBE2_GAIN -24 //Encoder gain in dB (I use -24 here)
-#define USRP_RXGAIN -6
-#define USRP_TXGAIN 3
-
 int16_t calcGainVal(float db)
 {
-	float ratio = powf(10.0, (db/20.0));
+	float ratio = powf(10.0f, (db/20.0f));
 
-	if(db < 0){
-		ratio = (1/ratio) * (-1);
+	if(db < 0.0f){
+		ratio = (-1.0f/ratio);
 	}
 
 	return (int16_t)roundf(ratio);
@@ -53,8 +48,8 @@ CController::CController() : keep_running(true) {}
 
 bool CController::Start()
 {
-	usrp_rxgain = calcGainVal(USRP_RXGAIN);
-	usrp_txgain = calcGainVal(USRP_TXGAIN);
+	usrp_rxgain = calcGainVal(g_Conf.GetGain(EGainType::usrprx));
+	usrp_txgain = calcGainVal(g_Conf.GetGain(EGainType::usrptx));
 
 	if (InitVocoders() || reader.Open(REF2TC))
 	{
@@ -134,7 +129,7 @@ bool CController::InitVocoders()
 {
 	// M17 "devices", one for each module
 	const std::string modules(g_Conf.GetTCMods());
-	for ( auto c : modules)
+	for (auto c : modules)
 	{
 		c2_16[c] = std::unique_ptr<CCodec2>(new CCodec2(false));
 		c2_32[c] = std::unique_ptr<CCodec2>(new CCodec2(true));

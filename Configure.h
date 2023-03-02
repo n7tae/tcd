@@ -22,7 +22,7 @@
 #include <string>
 #include <regex>
 
-enum class EGainType { dmrin, dmrout, dstarin, dstarout };
+enum class EGainType { dmrin, dmrout, dstarin, dstarout, usrptx, usrprx };
 
 #define IS_TRUE(a) ((a)=='t' || (a)=='T' || (a)=='1')
 
@@ -30,13 +30,13 @@ class CConfigure
 {
 public:
 	bool ReadData(const std::string &path);
-	int8_t GetGain(EGainType gt) const;
+	int GetGain(EGainType gt) const;
 	std::string GetTCMods(void) const { return tcmods; }
 
 private:
 	// CFGDATA data;
 	std::string tcmods;
-	int dstar_in, dstar_out, dmr_in, dmr_out;
+	int dstar_in, dstar_out, dmr_in, dmr_out, usrp_tx, usrp_rx;
 
 	int getSigned(const std::string &key, const std::string &value) const;
 	void badParam(const std::string &key) const;

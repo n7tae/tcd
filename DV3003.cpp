@@ -33,7 +33,6 @@
 #include <thread>
 
 #include "DV3003.h"
-#include "configure.h"
 #include "Controller.h"
 
 extern CController Controller;
