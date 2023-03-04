@@ -153,15 +153,15 @@ bool CConfigure::ReadData(const std::string &path)
 int CConfigure::getSigned(const std::string &key, const std::string &value) const
 {
 	auto i = std::stoi(value.c_str());
-	if (i < -36)
+	if (i < -24)
 	{
-		std::cout << "WARNING: " << key << " = " << value << " is too low. Limit to -36!" << std::endl;
-		i = -36;
+		std::cout << "WARNING: " << key << " = " << value << " is too low. Limit to -24!" << std::endl;
+		i = -24;
 	}
-	else if (i > 36)
+	else if (i > 24)
 	{
-		std::cout << "WARNING: " << key << " = " << value << " is too high. Limit to 36!" << std::endl;
-		i = 36;
+		std::cout << "WARNING: " << key << " = " << value << " is too high. Limit to 24!" << std::endl;
+		i = 24;
 	}
 	return i;
 }

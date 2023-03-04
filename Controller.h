@@ -58,11 +58,10 @@ protected:
 	CPacketQueue imbe_queue;
 	CPacketQueue usrp_queue;
 	std::mutex send_mux;
-	int16_t ambe_gain;
-	int16_t usrp_rxgain;
-	int16_t usrp_txgain;
+	int32_t ambe_in_num, ambe_out_num, usrp_rx_num, usrp_tx_num;
 	imbe_vocoder p25vocoder;
 
+	int32_t calcNumerator(int32_t db) const;
 	bool DiscoverFtdiDevices(std::list<std::pair<std::string, std::string>> &found);
 	bool InitVocoders();
 	// processing threads

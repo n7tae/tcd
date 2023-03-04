@@ -34,12 +34,9 @@
 #include <thread>
 
 #include "DVSIDevice.h"
-#include "Controller.h"
 #include "Configure.h"
 
 extern CConfigure g_Conf;
-
-extern CController Controller;
 
 CDVDevice::CDVDevice(Encoding t) : type(t), ftHandle(nullptr), buffer_depth(0), keep_running(true)
 {
