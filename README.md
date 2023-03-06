@@ -46,9 +46,9 @@ cp config/* .
 ```
 
 Use your favorite text editor to edit the following files:
-- *tcd.mk* defines some compile time options. If you want to use the md380 vocoder, or change the installation directory, specify it here. Once you've set these options, do `make` to compile *tcd*.
+- *tcd.mk* defines some compile time options. If you want to use the md380 vocoder, or change the installation directory, specify it here. Once you've set these options, do `make` to compile *tcd*. If you change `BINDIR`, you need to also change the `ExecStart` in your *tcd.service* file.
 - *tcd.ini* defines run-time options. It is especially imporant that the `Transcoded` line for the tcd.ini file is exactly the same as the same line in the urfd.ini file! Suggested values for vocoder gains are provided.
-- *tcd.service* is the systemd service file. be sure the `ExecStart` line will successfully start *tcd* by specifying the path to your *tcd* executable and your tcd.ini file.
+- *tcd.service* is the systemd service file. You will need to modify the `ExecStart` line to successfully start *tcd* by specifying the path to your *tcd* executable and your tcd.ini file.
 
 ## Installing *tcd*
 
