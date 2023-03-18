@@ -28,31 +28,24 @@
 
 #include "TranscoderPacket.h"
 #include "Controller.h"
+#include "Configure.h"
 
+extern CConfigure g_Conf;
 
-//#define AMBE_GAIN 16 //Encoder gain in dB (I use 16 here)
-//#define AMBE2_GAIN -24 //Encoder gain in dB (I use -24 here)
-#define USRP_RXGAIN -6
-#define USRP_TXGAIN 3
-
-int16_t calcGainVal(float db)
+int32_t CController::calcNumerator(int32_t db) const
 {
-	float ratio = powf(10.0, (db/20.0));
-	
-	if(db < 0){
-		ratio = (1/ratio) * (-1);
-	}
-	
-	return (int16_t)roundf(ratio);
+	float num = 256.0f * powf(10.0f, (float(db)/20.0f));
+
+	return int32_t(roundf(num));
 }
 
 CController::CController() : keep_running(true) {}
 
 bool CController::Start()
 {
-	usrp_rxgain = calcGainVal(USRP_RXGAIN);
-	usrp_txgain = calcGainVal(USRP_TXGAIN);
-	
+	usrp_rx_num = calcNumerator(g_Conf.GetGain(EGainType::usrprx));
+	usrp_tx_num = calcNumerator(g_Conf.GetGain(EGainType::usrptx));
+
 	if (InitVocoders() || reader.Open(REF2TC))
 	{
 		keep_running = false;
@@ -130,7 +123,7 @@ bool CController::DiscoverFtdiDevices(std::list<std::pair<std::string, std::stri
 bool CController::InitVocoders()
 {
 	// M17 "devices", one for each module
-	const std::string modules(TRANSCODED_MODULES);
+	const std::string modules(g_Conf.GetTCMods());
 	for ( auto c : modules)
 	{
 		c2_16[c] = std::unique_ptr<CCodec2>(new CCodec2(false));
@@ -196,7 +189,8 @@ bool CController::InitVocoders()
 			dstar_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dstar));
 #ifdef USE_SW_AMBE2
 			md380_init();
-			ambe_gain = calcGainVal(DMR_IN_GAIN);
+			ambe_in_num = calcNumerator(g_Conf.GetGain(EGainType::dmrin));
+			ambe_out_num = calcNumerator(g_Conf.GetGain(EGainType::dmrout));
 #else
 			dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3000(Encoding::dmrsf));
 #endif
@@ -210,10 +204,10 @@ bool CController::InitVocoders()
 			dmrsf_device = std::unique_ptr<CDVDevice>(new CDV3003(Encoding::dmrsf));
 #endif
 		}
-		
+
 		if (dstar_device)
 		{
-			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, DSTAR_IN_GAIN, DSTAR_OUT_GAIN))
+			if (dstar_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, int8_t(g_Conf.GetGain(EGainType::dstarin)), int8_t(g_Conf.GetGain(EGainType::dstarout))))
 				return true;
 			deviceset.pop_front();
 		}
@@ -225,7 +219,7 @@ bool CController::InitVocoders()
 #ifndef USE_SW_AMBE2
 		if (dmrsf_device)
 		{
-			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, DMR_IN_GAIN, DMR_OUT_GAIN))
+			if (dmrsf_device->OpenDevice(deviceset.front().first, deviceset.front().second, dvtype, int8_t(g_Conf.GetGain(EGainType::dmrin)), int8_t(g_Conf.GetGain(EGainType::dmrout))))
 				return true;
 			deviceset.pop_front();
 		}
@@ -239,7 +233,7 @@ bool CController::InitVocoders()
 
 	// and start them (or it) up!
 	dstar_device->Start();
-	
+
 #ifndef USE_SW_AMBE2
 	dmrsf_device->Start();
 #endif
@@ -331,7 +325,7 @@ void CController::Codec2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 {
 	uint8_t ambe2[9];
 	uint8_t imbe[11];
-	
+
 	if (packet->IsSecond())
 	{
 		if (packet->GetCodecIn() == ECodecType::c2_1600)
@@ -415,24 +409,21 @@ void CController::ProcessC2Thread()
 #ifdef USE_SW_AMBE2
 void CController::AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet)
 {
-	const auto m = packet->GetModule();
 	uint8_t ambe2[9];
-	int16_t tmp[160];
 	const int16_t *p = packet->GetAudioSamples();
-	const uint32_t g = abs(ambe_gain);
-	
-	for(int i = 0; i < 160; ++i){
-		if(ambe_gain < 0){
-			tmp[i] = p[i] / g;
-		}
-		else{
-			tmp[i] = p[i] * g;
-		}
+
+	if (ambe_in_num != 256)
+	{
+		int16_t tmp[160];
+		for(int i = 0; i < 160; ++i)
+			tmp[i] = int16_t((p[i] * ambe_in_num) >> 8);
+		md380_encode_fec(ambe2, tmp);
 	}
-		
-	md380_encode_fec(ambe2, tmp);
+	else
+		md380_encode_fec(ambe2, p);
+
 	packet->SetDMRData(ambe2);
-	
+
 	// we might be all done...
 	send_mux.lock();
 	if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
@@ -441,9 +432,15 @@ void CController::AudiotoSWAMBE2(std::shared_ptr<CTranscoderPacket> packet)
 
 void CController::SWAMBE2toAudio(std::shared_ptr<CTranscoderPacket> packet)
 {
-	int16_t tmp[160] = {0};
+	int16_t tmp[160];
 	md380_decode_fec(packet->GetDMRData(), tmp);
+	if (ambe_out_num != 256)
+	{
+		for (int i=0; i<160; i++)
+			tmp[i] = (tmp[i] * ambe_out_num) >> 8;
+	}
 	packet->SetAudioSamples(tmp, false);
+
 	dstar_device->AddPacket(packet);
 	codec2_queue.push(packet);
 	imbe_queue.push(packet);
@@ -488,18 +485,18 @@ void CController::AudiotoIMBE(std::shared_ptr<CTranscoderPacket> packet)
 
 void CController::IMBEtoAudio(std::shared_ptr<CTranscoderPacket> packet)
 {
-	int16_t tmp[160] = {0};
+	int16_t tmp[160] = { 0 };
 	p25vocoder.decode_4400(tmp, (uint8_t*)packet->GetP25Data());
 	packet->SetAudioSamples(tmp, false);
 	dstar_device->AddPacket(packet);
 	codec2_queue.push(packet);
-	
+
 #ifdef USE_SW_AMBE2
 	swambe2_queue.push(packet);
 #else
 	dmrsf_device->AddPacket(packet);
 #endif
-	
+
 	usrp_queue.push(packet);
 }
 
@@ -528,21 +525,19 @@ void CController::ProcessIMBEThread()
 
 void CController::AudiotoUSRP(std::shared_ptr<CTranscoderPacket> packet)
 {
-	int16_t tmp[160];
 	const int16_t *p = packet->GetAudioSamples();
-	const uint32_t g = abs(usrp_txgain);
-	
-	for(int i = 0; i < 160; ++i){
-		if(usrp_txgain < 0){
-			tmp[i] = p[i] / g;
-		}
-		else{
-			tmp[i] = p[i] * g;
-		}
+
+	if (usrp_tx_num != 256)
+	{
+		int16_t tmp[160];
+		for(int i = 0; i < 160; ++i)
+			tmp[i] = int16_t((p[i] * usrp_tx_num) >> 8);
+		packet->SetUSRPData(tmp);
 	}
-		
-	packet->SetUSRPData(tmp);
-	
+	else
+		packet->SetUSRPData(p);
+
+
 	// we might be all done...
 	send_mux.lock();
 	if (packet->AllCodecsAreSet() && packet->HasNotBeenSent()) SendToReflector(packet);
@@ -551,30 +546,27 @@ void CController::AudiotoUSRP(std::shared_ptr<CTranscoderPacket> packet)
 
 void CController::USRPtoAudio(std::shared_ptr<CTranscoderPacket> packet)
 {
-	int16_t tmp[160];
 	const int16_t *p = packet->GetUSRPData();
-	const uint32_t g = abs(usrp_rxgain);
-	
-	for(int i = 0; i < 160; ++i){
-		if(usrp_rxgain < 0){
-			tmp[i] = p[i] / g;
-		}
-		else{
-			tmp[i] = p[i] * g;
-		}
+
+	if (usrp_rx_num != 256)
+	{
+		int16_t tmp[160];
+		for(int i = 0; i < 160; ++i)
+			tmp[i] = int16_t((p[i] * usrp_rx_num) >> 8);
+		packet->SetAudioSamples(tmp, false);
 	}
-	
-	//packet->SetAudioSamples(packet->GetUSRPData(), false);
-	packet->SetAudioSamples(tmp, false);
+	else
+		packet->SetAudioSamples(p, false);
+
 	dstar_device->AddPacket(packet);
 	codec2_queue.push(packet);
-	
+
 #ifdef USE_SW_AMBE2
 	swambe2_queue.push(packet);
 #else
 	dmrsf_device->AddPacket(packet);
 #endif
-	
+
 	imbe_queue.push(packet);
 }
 

@@ -1,12 +1,6 @@
 #Copyright (C) 2021 by Thomas A. Early, N7TAE
 
-include configure.mk
-
-# If you are going to change this path, you will
-# need to update the systemd service script
-BINDIR = /usr/local/bin
-
-swambe2 = false
+include tcd.mk
 
 GCC = g++
 
@@ -49,7 +43,7 @@ clean :
 # The install and uninstall targets need to be run by root
 install : $(EXE)
 	cp $(EXE) $(BINDIR)
-	cp systemd/$(EXE).service /etc/systemd/system/
+	cp $(EXE).service /etc/systemd/system/
 	systemctl enable $(EXE)
 	systemctl daemon-reload
 	systemctl start $(EXE)
