@@ -22,6 +22,7 @@
 #include <sstream>
 #include <fstream>
 #include <thread>
+#include <queue>
 #ifdef USE_SW_AMBE2
 #include <md380_vocoder.h>
 #endif
@@ -46,7 +47,7 @@ bool CController::Start()
 	usrp_rx_num = calcNumerator(g_Conf.GetGain(EGainType::usrprx));
 	usrp_tx_num = calcNumerator(g_Conf.GetGain(EGainType::usrptx));
 
-	if (InitVocoders() || reader.Open(REF2TC))
+	if (InitVocoders() || tcClient.Initialize(g_Conf.GetAddress(), g_Conf.GetTCMods(), g_Conf.GetPort()))
 	{
 		keep_running = false;
 		return true;
@@ -70,7 +71,7 @@ void CController::Stop()
 	if (c2Future.valid())
 		c2Future.get();
 
-	reader.Close();
+	tcClient.Close();
 	dstar_device->CloseDevice();
 	dmrsf_device->CloseDevice();
 	dstar_device.reset();
@@ -249,39 +250,42 @@ void CController::ReadReflectorThread()
 {
 	while (keep_running)
 	{
-		STCPacket tcpack;
+		std::queue<std::unique_ptr<STCPacket>> queue;
 		// wait up to 100 ms to read something on the unix port
-		if (reader.Receive(&tcpack, 100))
+		if (tcClient.Receive(queue, 100))
 		{
-			// create a shared pointer to a new packet
-			// there is only one CTranscoderPacket created for each new STCPacket received from the reflector
-			auto packet = std::make_shared<CTranscoderPacket>(tcpack);
-
-			switch (packet->GetCodecIn())
+			while (! queue.empty())
 			{
-			case ECodecType::dstar:
-				dstar_device->AddPacket(packet);
-				break;
-			case ECodecType::dmr:
-#ifdef USE_SW_AMBE2
-				swambe2_queue.push(packet);
-#else
-				dmrsf_device->AddPacket(packet);
-#endif
-				break;
-			case ECodecType::p25:
-				imbe_queue.push(packet);
-				break;
-			case ECodecType::usrp:
-				usrp_queue.push(packet);
-				break;
-			case ECodecType::c2_1600:
-			case ECodecType::c2_3200:
-				codec2_queue.push(packet);
-				break;
-			default:
-				Dump(packet, "ERROR: Received a reflector packet with unknown Codec:");
-				break;
+				// create a shared pointer to a new packet
+				// there is only one CTranscoderPacket created for each new STCPacket received from the reflector
+				auto packet = std::make_shared<CTranscoderPacket>(*queue.front());
+				queue.pop();
+				switch (packet->GetCodecIn())
+				{
+				case ECodecType::dstar:
+					dstar_device->AddPacket(packet);
+					break;
+				case ECodecType::dmr:
+		#ifdef USE_SW_AMBE2
+					swambe2_queue.push(packet);
+		#else
+					dmrsf_device->AddPacket(packet);
+		#endif
+					break;
+				case ECodecType::p25:
+					imbe_queue.push(packet);
+					break;
+				case ECodecType::usrp:
+					usrp_queue.push(packet);
+					break;
+				case ECodecType::c2_1600:
+				case ECodecType::c2_3200:
+					codec2_queue.push(packet);
+					break;
+				default:
+					Dump(packet, "ERROR: Received a reflector packet with unknown Codec:");
+					break;
+				}
 			}
 		}
 	}
@@ -595,14 +599,8 @@ void CController::ProcessUSRPThread()
 
 void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 {
-	// open a socket to the reflector channel
-	CUnixDgramWriter socket;
-	std::string name(TC2REF);
-	name.append(1, packet->GetModule());
-	socket.SetUp(name.c_str());
 	// send the packet over the socket
-	socket.Send(packet->GetTCPacket());
-	// the socket will automatically close after sending
+	tcClient.Send(packet->GetTCPacket());
 	packet->Sent();
 }
 

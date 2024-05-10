@@ -21,6 +21,7 @@
 #include <fstream>
 #include <vector>
 #include <sstream>
+#include <regex>
 #include "Configure.h"
 
 // ini file keywords
@@ -30,7 +31,9 @@
 #define DMRGAINOUT     "DmrYsfGainOut"
 #define DSTARGAININ    "DStarGainIn"
 #define DSTARGAINOUT   "DStarGainOut"
-#define TRANSCODED     "Transcoded"
+#define MODULES        "Modules"
+#define ADDRESS        "Address"
+#define PORT           "Port"
 
 static inline void split(const std::string &s, char delim, std::vector<std::string> &v)
 {
@@ -63,7 +66,10 @@ static inline void trim(std::string &s) {
 bool CConfigure::ReadData(const std::string &path)
 // returns true on failure
 {
-	std::string modstmp;
+	std::regex IPv4RegEx = std::regex("^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3,3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9]){1,1}$", std::regex::extended);
+	std::regex IPv6RegEx = std::regex("^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}(:[0-9a-fA-F]{1,4}){1,1}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|([0-9a-fA-F]{1,4}:){1,1}(:[0-9a-fA-F]{1,4}){1,6}|:((:[0-9a-fA-F]{1,4}){1,7}|:))$", std::regex::extended);
+
+	std::string modstmp, porttmp;
 
 	std::ifstream cfgfile(path.c_str(), std::ifstream::in);
 	if (! cfgfile.is_open()) {
@@ -104,7 +110,11 @@ bool CConfigure::ReadData(const std::string &path)
 			std::cout << "WARNING: missing key or value: '" << line << "'" << std::endl;
 			continue;
 		}
-		if (0 == key.compare(TRANSCODED))
+		if (0 == key.compare(ADDRESS))
+			address.assign(value);
+		else if (0 == key.compare(PORT))
+			porttmp.assign(value);
+		else if (0 == key.compare(MODULES))
 			modstmp.assign(value);
 		else if (0 == key.compare(DSTARGAININ))
 			dstar_in = getSigned(key, value);
@@ -139,7 +149,22 @@ bool CConfigure::ReadData(const std::string &path)
 		return true;
 	}
 
-	std::cout << TRANSCODED << " = " << tcmods << std::endl;
+	if (! std::regex_match(address, IPv4RegEx) && ! std::regex_match(address, IPv6RegEx))
+	{
+		std::cerr << "ERROR: '" << address << "' is malformed, Halt." << std::endl;
+		return true;
+	}
+
+	port = std::strtoul(porttmp.c_str(), nullptr, 10);
+	if (port < 1025 || port > 49000)
+	{
+		std::cerr << "ERROR: Port '" << porttmp << "' must be between >1024 and <49000. Halt." << std::endl;
+		return true;
+	}
+
+	std::cout << MODULES << " = " << tcmods << std::endl;
+	std::cout << ADDRESS << " = " << address << std::endl;
+	std::cout << PORT << " = " << port << std::endl;
 	std::cout << DSTARGAININ << " = " << dstar_in << std::endl;
 	std::cout << DSTARGAINOUT << " = " << dstar_out << std::endl;
 	std::cout << DMRGAININ << " = " << dmr_in << std::endl;

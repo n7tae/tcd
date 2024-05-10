@@ -32,10 +32,13 @@ public:
 	bool ReadData(const std::string &path);
 	int GetGain(EGainType gt) const;
 	std::string GetTCMods(void) const { return tcmods; }
+	std::string GetAddress(void) const { return address; }
+	unsigned GetPort(void) const { return port; }
 
 private:
 	// CFGDATA data;
-	std::string tcmods;
+	std::string tcmods, address;
+	uint16_t port;
 	int dstar_in, dstar_out, dmr_in, dmr_out, usrp_tx, usrp_rx;
 
 	int getSigned(const std::string &key, const std::string &value) const;
