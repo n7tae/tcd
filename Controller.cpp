@@ -250,6 +250,8 @@ void CController::ReadReflectorThread()
 {
 	while (keep_running)
 	{
+		tcClient.CheckConnections();
+
 		std::queue<std::unique_ptr<STCPacket>> queue;
 		// wait up to 100 ms to read something on the unix port
 		if (tcClient.Receive(queue, 100))
@@ -266,11 +268,11 @@ void CController::ReadReflectorThread()
 					dstar_device->AddPacket(packet);
 					break;
 				case ECodecType::dmr:
-		#ifdef USE_SW_AMBE2
+#ifdef USE_SW_AMBE2
 					swambe2_queue.push(packet);
-		#else
+#else
 					dmrsf_device->AddPacket(packet);
-		#endif
+#endif
 					break;
 				case ECodecType::p25:
 					imbe_queue.push(packet);
