@@ -32,7 +32,7 @@
 #define DSTARGAININ    "DStarGainIn"
 #define DSTARGAINOUT   "DStarGainOut"
 #define MODULES        "Modules"
-#define ADDRESS        "Address"
+#define SERVERADDRESS  "ServerAddress"
 #define PORT           "Port"
 
 static inline void split(const std::string &s, char delim, std::vector<std::string> &v)
@@ -110,7 +110,7 @@ bool CConfigure::ReadData(const std::string &path)
 			std::cout << "WARNING: missing key or value: '" << line << "'" << std::endl;
 			continue;
 		}
-		if (0 == key.compare(ADDRESS))
+		if (0 == key.compare(SERVERADDRESS))
 			address.assign(value);
 		else if (0 == key.compare(PORT))
 			porttmp.assign(value);
@@ -163,7 +163,7 @@ bool CConfigure::ReadData(const std::string &path)
 	}
 
 	std::cout << MODULES << " = " << tcmods << std::endl;
-	std::cout << ADDRESS << " = " << address << std::endl;
+	std::cout << SERVERADDRESS << " = " << address << std::endl;
 	std::cout << PORT << " = " << port << std::endl;
 	std::cout << DSTARGAININ << " = " << dstar_in << std::endl;
 	std::cout << DSTARGAINOUT << " = " << dstar_out << std::endl;
