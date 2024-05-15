@@ -250,7 +250,7 @@ void CController::ReadReflectorThread()
 {
 	while (keep_running)
 	{
-		tcClient.CheckConnections();
+		tcClient.ReConnect();
 
 		std::queue<std::unique_ptr<STCPacket>> queue;
 		// wait up to 100 ms to read something on the unix port
