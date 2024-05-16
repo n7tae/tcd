@@ -47,7 +47,7 @@ bool CController::Start()
 	usrp_rx_num = calcNumerator(g_Conf.GetGain(EGainType::usrprx));
 	usrp_tx_num = calcNumerator(g_Conf.GetGain(EGainType::usrptx));
 
-	if (InitVocoders() || tcClient.Initialize(g_Conf.GetAddress(), g_Conf.GetTCMods(), g_Conf.GetPort()))
+	if (InitVocoders() || tcClient.Open(g_Conf.GetAddress(), g_Conf.GetTCMods(), g_Conf.GetPort()))
 	{
 		keep_running = false;
 		return true;
@@ -250,44 +250,48 @@ void CController::ReadReflectorThread()
 {
 	while (keep_running)
 	{
-		tcClient.ReConnect();
-
 		std::queue<std::unique_ptr<STCPacket>> queue;
 		// wait up to 100 ms to read something on the unix port
 		if (tcClient.Receive(queue, 100))
 		{
-			while (! queue.empty())
+			if (tcClient.ReConnect())
 			{
-				// create a shared pointer to a new packet
-				// there is only one CTranscoderPacket created for each new STCPacket received from the reflector
-				auto packet = std::make_shared<CTranscoderPacket>(*queue.front());
-				queue.pop();
-				switch (packet->GetCodecIn())
-				{
-				case ECodecType::dstar:
-					dstar_device->AddPacket(packet);
-					break;
-				case ECodecType::dmr:
+				std::cerr << "Unrecoverable ERROR! Quitting..." << std::endl;
+				exit(1);
+			}
+		}
+
+		while (! queue.empty())
+		{
+			// create a shared pointer to a new packet
+			// there is only one CTranscoderPacket created for each new STCPacket received from the reflector
+			auto packet = std::make_shared<CTranscoderPacket>(*queue.front());
+			queue.pop();
+			switch (packet->GetCodecIn())
+			{
+			case ECodecType::dstar:
+				dstar_device->AddPacket(packet);
+				break;
+			case ECodecType::dmr:
 #ifdef USE_SW_AMBE2
-					swambe2_queue.push(packet);
+				swambe2_queue.push(packet);
 #else
-					dmrsf_device->AddPacket(packet);
+				dmrsf_device->AddPacket(packet);
 #endif
-					break;
-				case ECodecType::p25:
-					imbe_queue.push(packet);
-					break;
-				case ECodecType::usrp:
-					usrp_queue.push(packet);
-					break;
-				case ECodecType::c2_1600:
-				case ECodecType::c2_3200:
-					codec2_queue.push(packet);
-					break;
-				default:
-					Dump(packet, "ERROR: Received a reflector packet with unknown Codec:");
-					break;
-				}
+				break;
+			case ECodecType::p25:
+				imbe_queue.push(packet);
+				break;
+			case ECodecType::usrp:
+				usrp_queue.push(packet);
+				break;
+			case ECodecType::c2_1600:
+			case ECodecType::c2_3200:
+				codec2_queue.push(packet);
+				break;
+			default:
+				Dump(packet, "ERROR: Received a reflector packet with unknown Codec:");
+				break;
 			}
 		}
 	}
@@ -602,7 +606,14 @@ void CController::ProcessUSRPThread()
 void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 {
 	// send the packet over the socket
-	tcClient.Send(packet->GetTCPacket());
+	while (tcClient.Send(packet->GetTCPacket()))
+	{
+		if (tcClient.ReConnect())
+		{
+			std::cerr << "Unrecoverable ERROR, quiting!" << std::endl;
+			exit(1);
+		}
+	}
 	packet->Sent();
 }
 
