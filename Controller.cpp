@@ -676,6 +676,14 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 		line << "**";
 	else if (ECodecType::c2_3200 == in)
 		line << '*';
+	if (p->P25IsSet())
+		line << " P25";
+	if (ECodecType::p25 == in)
+		line << "*";
+	if (p->USRPIsSet())
+		line << " USRP";
+	if (ECodecType::usrp == in)
+		line << "*";
 	if (p->IsSecond())
 		line << " IsSecond";
 	if (p->IsLast())
