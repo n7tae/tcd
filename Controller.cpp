@@ -250,17 +250,12 @@ void CController::ReadReflectorThread()
 {
 	while (keep_running)
 	{
+		// preemptively check the connection(s)...
+		tcClient.ReConnect();
+
 		std::queue<std::unique_ptr<STCPacket>> queue;
 		// wait up to 100 ms to read something on the unix port
-		if (tcClient.Receive(queue, 100))
-		{
-			if (tcClient.ReConnect())
-			{
-				std::cerr << "Unrecoverable ERROR! Quitting..." << std::endl;
-				exit(1);
-			}
-		}
-
+		tcClient.Receive(queue, 100);
 		while (! queue.empty())
 		{
 			// create a shared pointer to a new packet
