@@ -659,7 +659,7 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::string &title) const
 {
 	std::stringstream line;
-	line << title << " Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase << " ET:" << std::setprecision(3) << p->GetTimeMS();
+	line << title << " Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase;
 
 	ECodecType in = p->GetCodecIn();
 	if (p->DStarIsSet())
