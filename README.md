@@ -11,12 +11,10 @@ This is the only transcoder that will work with the [URF reflector](https://gith
 This software is loosely based on LX3JL's **ambed**, but is easily different enough to be considered an entirely original work. Here are some major differences with ambed:
 
 - tcd uses both hardware-based and software-based vocoders, providing a bridge between the closed source vocoders used in DStar, DMR NXDN and YSF and open-source vocoders used in M17 (Codec2) and P25 (IMBE).
-- *UNIX Sockets* are used to communicate between the reflector and this transcoder. This greatly simplifies the code and significantly improves transcoding performance.
+- *TCP Sockets* are used to communicate between the reflector and this transcoder. This guarantees that packets moving between the reflector and transcoder are never lost and the arrive at their destination in order.
 - Each configured module has a dedicated encoding and decoding instance running on a different thread. This prevents overloading when processing multiple voice streams and provides the best possible performance for the reflector's clients.
 
 ## Constraints and Requirements
-
-Currently, this program must be run locally with its paired URF reflector. Remote transcoding is not yet supported.
 
 Only systemd-based operating systems are supported. Debian or Ubuntu is recommended. If you want to install this on a non-systemd based OS, you are on your own. Also, by default, *tcd* is built without gdb support.
 
@@ -28,14 +26,14 @@ The DVSI devices need an FTDI driver which is available [here](https://ftdichip.
 
 ## Download the repository
 
-In the parent directory of you urfd repository:
+In the parent directory of you *urfd* repository:
 
 ```bash
 git clone https://github.com/nostar/tcd.git
 cd tcd
 ```
 
-To be perfectly clear, the urfd reflector repository clone and this clone **must be in the same directory**.
+To be perfectly clear, the urfd reflector repository clone and this clone **must be in the same directory**. If your transcoder is a remote installation, you still need to `git clone https://github.com/nostar/urfd.git` even though you won't compile anything in the *urfd* repository. Both *tcd* and *urfd* repositories need to be in the same directory as several of the source files in *tcd* are symbolic links to the adjacent *urfd* reflector source code.
 
 ## Compiling and configuring *tcd*
 
@@ -47,10 +45,10 @@ cp config/* .
 
 Use your favorite text editor to edit the following files:
 - *tcd.mk* defines some compile time options. If you want to use the md380 vocoder, or change the installation directory, specify it here. Once you've set these options, do `make` to compile *tcd*. If you change `BINDIR`, you need to also change the `ExecStart` in your *tcd.service* file.
-- *tcd.ini* defines run-time options. It is especially imporant that the `Transcoded` line for the tcd.ini file is exactly the same as the same line in the urfd.ini file! Suggested values for vocoder gains are provided.
+- *tcd.ini* defines run-time options. It is especially important that the `Modules` line for the tcd.ini file is exactly the same as the same line in the urfd.ini file! The `ServerAddress` is the url of the server. If the transcoder is local, this is usually `127.0.0.1` or `::1`. If the transcoder is remote, this is the IP address of the server. Suggested values for vocoder gains are provided.
 - *tcd.service* is the systemd service file. You will need to modify the `ExecStart` line to successfully start *tcd* by specifying the path to your *tcd* executable and your tcd.ini file.
 
-## Installing *tcd*
+## Installing *tcd* when the transcoder is local
 
 It is easiest to install and uninstall *tcd* using the ./radmin scripts in your urfd repo. If you want to do this manually:
 
@@ -58,3 +56,18 @@ It is easiest to install and uninstall *tcd* using the ./radmin scripts in your 
 sudo make install
 sudo make uninstall
 ```
+
+## Installing *tcd when the transcoder is remote
+
+Use:
+- `make` to compile *tcd*.
+- `sudo make install` to install and run *tcd*.
+- `sudo systemctl *something*` is used to manage the running *tcd*, where `*something*` might be `start`, `stop` or other verbs.
+- `sudo journalctl -u tcd -f` to monitor the logs.
+- `sudo make uninstall` to uninstall *tcd*.
+
+## Other considerations
+
+The TCP connection(s) are designed to reestablish themselves quickly if broken or otherwise interrupted. In some cases the interruption will cause either *tcd* or *urfd* to abort, but in some cases the module activity will block until the TCP connections are reestablished. But if the interruption is lengthy (more than a few seconds), clients using a transcoded reflector module will have trouble with the interruption.
+
+If the TCP connection(s) bewteen *tcd* and *urfd* are lost,tThe TCP connections will make every effort to reestablish the TCP ports. Once the port(s) have been reopened, packets queued up on the reflector will be sent to tcd as received, so if the TCP disconnect time is more that a second or two there could be a significant delay from went a user transmits into the reflector module, and when other clients listening to that module actually hear the transmission. If the TCP ports are down for a significant time, it's probably best to restart both the reflector and transcoder.
