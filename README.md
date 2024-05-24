@@ -66,8 +66,4 @@ Use:
 - `sudo journalctl -u tcd -f` to monitor the logs.
 - `sudo make uninstall` to uninstall *tcd*.
 
-## Other considerations
-
-The TCP connection(s) are designed to reestablish themselves quickly if broken or otherwise interrupted. In some cases the interruption will cause either *tcd* or *urfd* to abort, but in some cases the module activity will block until the TCP connections are reestablished. But if the interruption is lengthy (more than a few seconds), clients using a transcoded reflector module will have trouble with the interruption.
-
-If the TCP connection(s) bewteen *tcd* and *urfd* are lost,tThe TCP connections will make every effort to reestablish the TCP ports. Once the port(s) have been reopened, packets queued up on the reflector will be sent to tcd as received, so if the TCP disconnect time is more that a second or two there could be a significant delay from went a user transmits into the reflector module, and when other clients listening to that module actually hear the transmission. If the TCP ports are down for a significant time, it's probably best to restart both the reflector and transcoder.
+When started, *tcd* will establish a TCP connection for each transcoded reflector module. If the TCP connection is lost, *tcds* will block until the connection is reestablished. A message will be printed every 10 seconds suggesting that the reflector needs to be restarted.

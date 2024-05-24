@@ -603,11 +603,7 @@ void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 	// send the packet over the socket
 	while (tcClient.Send(packet->GetTCPacket()))
 	{
-		if (tcClient.ReConnect())
-		{
-			std::cerr << "Unrecoverable ERROR, quiting!" << std::endl;
-			exit(1);
-		}
+		tcClient.ReConnect();
 	}
 	packet->Sent();
 }
