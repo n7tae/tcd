@@ -52,7 +52,6 @@ public:
 	ECodecType GetCodecIn() const;
 	uint16_t GetStreamId() const;
 	uint32_t GetSequence() const;
-	double GetTimeMS() const;
 	bool IsLast() const;
 	bool IsSecond() const;
 	bool DStarIsSet() const;

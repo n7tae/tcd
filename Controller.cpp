@@ -22,6 +22,7 @@
 #include <sstream>
 #include <fstream>
 #include <thread>
+#include <queue>
 #ifdef USE_SW_AMBE2
 #include <md380_vocoder.h>
 #endif
@@ -46,7 +47,7 @@ bool CController::Start()
 	usrp_rx_num = calcNumerator(g_Conf.GetGain(EGainType::usrprx));
 	usrp_tx_num = calcNumerator(g_Conf.GetGain(EGainType::usrptx));
 
-	if (InitVocoders() || reader.Open(REF2TC))
+	if (InitVocoders() || tcClient.Open(g_Conf.GetAddress(), g_Conf.GetTCMods(), g_Conf.GetPort()))
 	{
 		keep_running = false;
 		return true;
@@ -70,7 +71,7 @@ void CController::Stop()
 	if (c2Future.valid())
 		c2Future.get();
 
-	reader.Close();
+	tcClient.Close();
 	dstar_device->CloseDevice();
 	dmrsf_device->CloseDevice();
 	dstar_device.reset();
@@ -249,14 +250,18 @@ void CController::ReadReflectorThread()
 {
 	while (keep_running)
 	{
-		STCPacket tcpack;
+		// preemptively check the connection(s)...
+		tcClient.ReConnect();
+
+		std::queue<std::unique_ptr<STCPacket>> queue;
 		// wait up to 100 ms to read something on the unix port
-		if (reader.Receive(&tcpack, 100))
+		tcClient.Receive(queue, 100);
+		while (! queue.empty())
 		{
 			// create a shared pointer to a new packet
 			// there is only one CTranscoderPacket created for each new STCPacket received from the reflector
-			auto packet = std::make_shared<CTranscoderPacket>(tcpack);
-
+			auto packet = std::make_shared<CTranscoderPacket>(*queue.front());
+			queue.pop();
 			switch (packet->GetCodecIn())
 			{
 			case ECodecType::dstar:
@@ -595,14 +600,11 @@ void CController::ProcessUSRPThread()
 
 void CController::SendToReflector(std::shared_ptr<CTranscoderPacket> packet)
 {
-	// open a socket to the reflector channel
-	CUnixDgramWriter socket;
-	std::string name(TC2REF);
-	name.append(1, packet->GetModule());
-	socket.SetUp(name.c_str());
 	// send the packet over the socket
-	socket.Send(packet->GetTCPacket());
-	// the socket will automatically close after sending
+	while (tcClient.Send(packet->GetTCPacket()))
+	{
+		tcClient.ReConnect();
+	}
 	packet->Sent();
 }
 
@@ -648,7 +650,7 @@ void CController::RouteDmrPacket(std::shared_ptr<CTranscoderPacket> packet)
 void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::string &title) const
 {
 	std::stringstream line;
-	line << title << " Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase << " ET:" << std::setprecision(3) << p->GetTimeMS();
+	line << title << " Mod='" << p->GetModule() << "' SID=" << std::showbase << std::hex << ntohs(p->GetStreamId()) << std::noshowbase;
 
 	ECodecType in = p->GetCodecIn();
 	if (p->DStarIsSet())
@@ -665,6 +667,14 @@ void CController::Dump(const std::shared_ptr<CTranscoderPacket> p, const std::st
 		line << "**";
 	else if (ECodecType::c2_3200 == in)
 		line << '*';
+	if (p->P25IsSet())
+		line << " P25";
+	if (ECodecType::p25 == in)
+		line << "*";
+	if (p->USRPIsSet())
+		line << " USRP";
+	if (ECodecType::usrp == in)
+		line << "*";
 	if (p->IsSecond())
 		line << " IsSecond";
 	if (p->IsLast())

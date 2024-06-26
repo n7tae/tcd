@@ -143,11 +143,6 @@ uint32_t CTranscoderPacket::GetSequence() const
 	return tcpacket.sequence;
 }
 
-double CTranscoderPacket::GetTimeMS() const
-{
-	return 1000.0 * tcpacket.rt_timer.time();
-}
-
 bool CTranscoderPacket::IsLast() const
 {
 	return tcpacket.is_last;
