@@ -66,4 +66,4 @@ Use:
 - `sudo journalctl -u tcd -f` to monitor the logs.
 - `sudo make uninstall` to uninstall *tcd*.
 
-When started, *tcd* will establish a TCP connection for each transcoded reflector module. If the TCP connection is lost, *tcds* will block until the connection is reestablished. A message will be printed every 10 seconds suggesting that the reflector needs to be restarted.
+When started, *tcd* will establish a TCP connection for each transcoded reflector module. If the TCP connection is lost, *tcd* will block until the connection is reestablished. A message will be printed every 10 seconds suggesting that the reflector needs to be restarted.
