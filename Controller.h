@@ -29,7 +29,7 @@
 #include "codec2.h"
 #include "DV3000.h"
 #include "DV3003.h"
-#include "UnixDgramSocket.h"
+#include "TCSocket.h"
 
 class CController
 {
@@ -48,8 +48,7 @@ protected:
 	std::future<void> reflectorFuture, c2Future, imbeFuture, usrpFuture;
 	std::unordered_map<char, int16_t[160]> audio_store;
 	std::unordered_map<char, uint8_t[8]> data_store;
-	CUnixDgramReader reader;
-	CUnixDgramWriter writer;
+	CTCClient tcClient;
 	std::unordered_map<char, std::unique_ptr<CCodec2>> c2_16, c2_32;
 	std::unique_ptr<CDVDevice> dstar_device, dmrsf_device;
 

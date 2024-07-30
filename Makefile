@@ -5,9 +5,9 @@ include tcd.mk
 GCC = g++
 
 ifeq ($(debug), true)
-CFLAGS = -ggdb3 -W -Werror -Icodec2 -MMD -MD -std=c++11
+CFLAGS = -ggdb3 -W -Werror -Icodec2 -MMD -MD -std=c++17
 else
-CFLAGS = -W -Werror -Icodec2 -MMD -MD -std=c++11
+CFLAGS = -W -Werror -Icodec2 -MMD -MD -std=c++17
 endif
 
 ifeq ($(swambe2), true)
